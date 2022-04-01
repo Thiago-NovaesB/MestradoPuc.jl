@@ -74,8 +74,9 @@ function season_model(data::Vector{Float64}, S::Vector{Int} = [8760], M::Vector{
     @variable(model, error[1:N])
     @variable(model, theta[1:sum(M)])
     @variable(model, phi[1:sum(M)])
+    @variable(model, level)
         
-    @expression(model, ST[i = 1:N], sum(sum(
+    @expression(model, ST[i = 1:N], level + sum(sum(
         theta[(j != 1 ? sum(M[l] for l = 1:j-1) : 0) + k]*cos(2*pi*k*i/S[j]) + 
         phi[(j != 1 ? sum(M[l] for l = 1:j-1) : 0) + k]*sin(2*pi*k*i/S[j]) 
         for k in 1:M[j]) for j = 1:m))
@@ -86,6 +87,8 @@ function season_model(data::Vector{Float64}, S::Vector{Int} = [8760], M::Vector{
     @objective(model, Min, sum(error))
 
     optimize!(model)
+
+    write_to_file(model, "teste.lp")
     
     return model
 end
@@ -129,19 +132,43 @@ function r_square(data::Vector{Float64}, estimative::Vector{Float64})
     n = length(data)
     average = sum(data) / n
     
-    for i in 1:n
-        output -= (data[i] - estimative[i])^2 / (data[i] - average)^2 
-    end
+    output = 1.0 - sum((data[i] - estimative[i])^2 for i in 1:n) / sum((data[i] - average)^2 for i in 1:n) 
 
     return output
 end
 
-function mae(data::Vector{Float64}, estimative::Vector{Float64}, T::Int, K::Int)
+function mae(data::Vector{Float64}, estimative::Vector{Float64}, T::Int)
     output = 0.0
-    
+
+    K = length(data) - T
+      
     for i in (T+1):(T+K)
         output += abs(data[i] - estimative[i]) / K
     end
     
     return output
+end
+
+function forecast(data::Vector{Float64}, K::Vector{Int} = [1], S::Vector{Int} = [8760], M::Vector{Int} = [1], T::Int = 0)
+    model = complete_model(data[1:T], K, S, M)
+
+    beta = value.(model[:beta])
+    theta = value.(model[:theta])
+    phi = value.(model[:phi])
+
+    n_forecast = length(data) - T
+
+    output = copy(data)
+    n = length(beta) - 1
+    m = length(S)
+
+    for i in 1:n_forecast #T+1:length(data)
+        AR = beta[1] + sum(beta[j+1]*output[T + i - K[j]] for j = 1:n)
+        ST = sum(sum(theta[(j != 1 ? sum(M[l] for l = 1:j-1) : 0) + k]*cos(2*pi*k*(T+i)/S[j]) + 
+            phi[(j != 1 ? sum(M[l] for l = 1:j-1) : 0) + k]*sin(2*pi*k*(T+i)/S[j]) 
+            for k in 1:M[j]) for j = 1:m)
+        output[T+i] = AR + ST
+    end
+
+    return data, output, model
 end
