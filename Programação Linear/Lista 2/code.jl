@@ -5,46 +5,7 @@ using GLPK;
 using CSV;
 using DataFrames;
 
-df = CSV.read("Programação Linear\\Lista 2\\WDBC.dat", DataFrame);
-X_train = Array(df[1:400,3:end])
-Y_train = Array(df[1:400,2]) .== "B"
 
-X_test = Array(df[401:end,3:end])
-Y_test = Array(df[401:end,2]) .== "B"
-
-model = Model(GLPK.Optimizer)
-@variable(model, z[i = 1:30])
-@variable(model, σ[i = 1:400])
-
-@constraint(model, 0 .<= X_train * z .<= 1)
-@constraint(model, σ .>= X_train * z - Y_train)
-@constraint(model, σ .>= Y_train - X_train * z)
-
-@objective(model, Min, sum(σ))
-optimize!(model)
-
-z = value.(z)
-true_positive = 0
-true_negative = 0
-false_positive = 0
-false_negative = 0
-
-for i in 1:length(Y_test)
-    if Y_test[i] == 1 && sum(z[j]*X_test[i,j] for j in 1:30) < 0.5
-        false_positive += 1
-    elseif Y_test[i] == 1 && sum(z[j]*X_test[i,j] for j in 1:30) >= 0.5
-        true_negative += 1
-    elseif Y_test[i] == 0 && sum(z[j]*X_test[i,j] for j in 1:30) < 0.5
-        true_positive += 1        
-    else
-        false_negative += 1
-    end
-end
-
-@show true_positive
-@show true_negative
-@show false_positive
-@show false_negative
 
 function questao_2()
     g_max = [5.0, 20.0, 12.0]
@@ -105,4 +66,89 @@ function questao_3(use_bat::Bool)
     @objective(model, Min, sum(c[i]*g[i,t] for i = 1:n, t = 1:T) + sum(z))
     optimize!(model)
     return objective_value(model)
+end
+
+function questao_6()
+    df = CSV.read("Programação Linear\\Lista 2\\WDBC.dat", DataFrame);
+    X_train = Array(df[1:400,3:end])
+    Y_train = Array(df[1:400,2]) .== "B"
+
+    X_test = Array(df[401:end,3:end])
+    Y_test = Array(df[401:end,2]) .== "B"
+
+    model = Model(GLPK.Optimizer)
+    @variable(model, z[i = 1:30])
+    @variable(model, σ[i = 1:400])
+
+    @constraint(model, 0 .<= X_train * z .<= 1)
+    @constraint(model, σ .>= X_train * z - Y_train)
+    @constraint(model, σ .>= Y_train - X_train * z)
+
+    @objective(model, Min, sum(σ))
+    optimize!(model)
+
+    z = value.(z)
+    true_positive = 0
+    true_negative = 0
+    false_positive = 0
+    false_negative = 0
+
+    for i in 1:length(Y_test)
+        if Y_test[i] == 1 && sum(z[j]*X_test[i,j] for j in 1:30) < 0.5
+            false_positive += 1
+        elseif Y_test[i] == 1 && sum(z[j]*X_test[i,j] for j in 1:30) >= 0.5
+            true_negative += 1
+        elseif Y_test[i] == 0 && sum(z[j]*X_test[i,j] for j in 1:30) < 0.5
+            true_positive += 1        
+        else
+            false_negative += 1
+        end
+    end
+
+    @show true_positive
+    @show true_negative
+    @show false_positive
+    @show false_negative
+end
+
+function questao_4()
+
+    r_LR = 0.05 + 1
+    N = 4
+    K = 2
+    T = 24
+    r = [0.4, -0.1, 0.2, -0.05] .+ 1
+    p = [0.1, 0.2, 0.3, 0.4]
+    IR_1 = 0.15
+    IR_2 = 0.27
+    L_1 = 3500
+    L_2 = Inf
+    r_t = [0.1*sin(t/6) for t in 1:T]    
+
+    model = Model(GLPK.Optimizer)
+
+    @variable(model, x_LR >= 0)
+    @variable(model, x_CR >= 0)
+    @variable(model, 0 <= d_c1[1:N] <= L_1)
+    @variable(model, 0 <= d_c2[1:N])
+    @variable(model, 0 <= d_t1[1:T] <= L_1)
+    @variable(model, 0 <= d_t2[1:T])
+
+    @expression(model, L_ir[c=1:N], d_c1[c]*(1-IR_1/100) + d_c2[c]*(1-IR_2/100)  )
+    @expression(model, L[c=1:N], d_c1[c] + d_c2[c]  )
+
+    @constraint(model,[c=1:N], L[c] == x_LR*r_LR + x_CR*r[c]  )
+
+    @expression(model, P_ir[t=1:T], d_t1[t]*(1-IR_1/100) + d_t2[t]*(1-IR_2/100)  )
+    @expression(model, P[t=1:T], d_t1[t] + d_t2[t]  )
+
+    @constraint(model,[t=1:T], P[t] == x_LR*r_LR + x_CR*r_t[t]  )
+    @constraint(model,[t=1:T], P_ir[t] >= 9000  )
+
+    @constraint(model, x_LR + x_CR == 10000)
+
+    @objective(model, Max, sum(L_ir.*p))
+
+    optimize!(model)
+    return model
 end
