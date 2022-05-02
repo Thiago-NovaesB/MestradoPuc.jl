@@ -1,0 +1,4 @@
+name = "Simplex"
+uuid = "3216ebdf-165f-4d97-826b-bc9216555479"
+authors = ["thiagonovaesb <thiagonovaes@psr-inc.com>"]
+version = "0.1.0"
