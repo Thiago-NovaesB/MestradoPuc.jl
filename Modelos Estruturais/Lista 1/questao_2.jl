@@ -3,6 +3,7 @@ using JuMP;
 using Plots;
 using Distributions
 using Random
+using StatsBase
 
 function create_serie()
     serie = zeros(120).+7
@@ -60,3 +61,7 @@ yd = Ad*xd
 yt = At*xt
 
 minimum(isapprox.(yd,yt))
+
+p = plot(autocov(yd - b))
+
+savefig(p,"Modelos Estruturais\\Lista 1\\imagens\\FAC.png")

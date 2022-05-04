@@ -390,9 +390,7 @@ function simul_l()
 
     d = MvNormal(mean, C)
     x = rand(d, L*2)
-    # y[1] = mu[1] + beta[1] + x[3,1]
     for i in 1:L-1
-    beta[2] = 0.7
         beta[i+3] = 3phi*beta[i+2] - 3phi^2*beta[i+1] + phi^3*beta[i] + x[1,i]
         mu[i+1] = mu[i] + beta[i+3] + x[2,i]
         y[i+1] = mu[i+1] + x[3,i]
