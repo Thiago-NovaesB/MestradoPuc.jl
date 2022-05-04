@@ -1,6 +1,6 @@
 function solve(input::Simplex.Input)
     
-    termination_status = 0 #max iteration
+    termination_status = 0 
     iter = 0
     max_iter = input.max_iter
 
@@ -23,7 +23,7 @@ function iterate(input::Simplex.Input, iter::Int)
     base = input.base
     nbase = input.nbase
     tol = input.tol
-    verbose = input.c
+    verbose = input.verbose
 
     B = view(A,:,base)
     N = view(A,:,nbase)
@@ -53,4 +53,5 @@ function iterate(input::Simplex.Input, iter::Int)
     end
 
     base[i], nbase[j] = nbase[j], base[i] 
+    return 0, iter #max iteration
 end

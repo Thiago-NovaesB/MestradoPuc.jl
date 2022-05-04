@@ -38,6 +38,102 @@ end
 
 plot_a()
 
+#b
+function simul_b()
+    phi = [0.1, -0.1, 0.1]
+    theta = [0.1, -0.2, 0.3, -0.4]
+    c = 8
+    L = 1000
+    y = zeros(L)
+
+    d = Normal(0, 0.1)
+    x = rand(d, L*2)
+
+    y[1] = 8 
+    y[2] = 8.1
+    y[3] = 8
+    for i in 4:L
+        y[i] = c + phi[1]*y[i-1]+ phi[2]*y[i-2] + phi[3]*y[i-3]
+        + theta[1]*x[i+3] + theta[2]*x[i+2] + theta[2]*x[i+1] + theta[2]*x[i] + x[i+4]
+    end
+
+    return y
+end
+function plot_b()
+    p = plot(simul_b())
+    plot!(simul_b())
+    plot!(simul_b())
+    plot!(simul_b())
+    plot!(simul_b())
+    savefig(p,"Modelos Estruturais\\Lista 1\\imagens\\b.png")
+end
+
+plot_b()
+
+#c
+function simul_c()
+    phi = [0.1, -0.1, 0.1]
+    theta = [0.1, -0.2, 0.3, -0.4]
+    c = 8
+    L = 1000
+    y = zeros(L)
+
+    d = Normal(0, 0.1)
+    x = rand(d, L*2)
+
+    y[1] = 8 
+    y[2] = 8.1
+    y[3] = 8
+    for i in 4:L
+        y[i] = c + (1+phi[1])*y[i-1]+ (phi[2]-phi[2])*y[i-2] - phi[3]*y[i-3]
+        + theta[1]*x[i-1] + x[i]
+    end
+
+    return y
+end
+function plot_c()
+    p = plot(simul_c())
+    plot!(simul_c())
+    plot!(simul_c())
+    plot!(simul_c())
+    plot!(simul_c())
+    savefig(p,"Modelos Estruturais\\Lista 1\\imagens\\c.png")
+end
+
+plot_c()
+
+#d
+function simul_d()
+    mean = [0.,0.]
+    C = [0.2 0;0 0.1]
+    L = 1000
+    phi = zeros(L)
+    y = zeros(L)
+    beta = 0.05
+    alpha = 0.2
+    phi[1] = 1
+    y[1] = 1
+
+    d = MvNormal(mean, C)
+    x = rand(d, L)
+    for i in 1:L-1
+        phi[i+1] = beta + alpha*phi[i] + beta + x[1,i+1]
+        y[i+1] = phi[i]*y[i] + x[2,i]
+    end
+
+    return y
+end
+function plot_d()
+    p = plot(simul_d())
+    plot!(simul_d())
+    plot!(simul_d())
+    plot!(simul_d())
+    plot!(simul_d())
+    savefig(p,"Modelos Estruturais\\Lista 1\\imagens\\d.png")
+end
+
+plot_d()
+
 #e
 function simul_e()
     mean = [0.,0., 0.]
@@ -208,3 +304,109 @@ function plot_i()
 end
 
 plot_i()
+
+#j
+function simul_j()
+    mean = [0.,0.]
+    C = [0.2 0;0 0.3]
+    L = 1000
+    mu = zeros(L)
+    epsilon = zeros(L)
+    y = zeros(L)
+    mu[1] = 1
+
+    phi = 0.7
+
+    d = MvNormal(mean, C)
+    x = rand(d, L*2)
+    # y[1] = mu[1] + beta[1] + x[3,1]
+    for i in 1:L-1
+        epsilon[i+1] = phi*x[2,i] + x[2,i+1]
+        mu[i+1] = mu[i] + x[1,i+1]
+        y[i+1] = mu[i] + epsilon[i]
+    end
+
+    return y
+end 
+function plot_j()
+    p = plot(simul_j())
+    plot!(simul_j())
+    plot!(simul_j())
+    plot!(simul_j())
+    plot!(simul_j())
+    savefig(p,"Modelos Estruturais\\Lista 1\\imagens\\j.png")
+end
+
+plot_j()
+
+#k
+function simul_k()
+    mean = [0.,0.]
+    C = [0.2 0;0 0.3]
+    L = 1000
+    mu = zeros(L)
+    epsilon = zeros(L)
+    y = zeros(L)
+    mu[1] = 1
+
+    phi = 0.7
+
+    d = MvNormal(mean, C)
+    x = rand(d, L*2)
+    # y[1] = mu[1] + beta[1] + x[3,1]
+    for i in 1:L-1
+        epsilon[i+1] = phi*epsilon[i] + x[2,i+1]
+        mu[i+1] = mu[i] + x[1,i+1]
+        y[i+1] = mu[i] + epsilon[i]
+    end
+
+    return y
+end 
+function plot_k()
+    p = plot(simul_k())
+    plot!(simul_k())
+    plot!(simul_k())
+    plot!(simul_k())
+    plot!(simul_k())
+    savefig(p,"Modelos Estruturais\\Lista 1\\imagens\\k.png")
+end
+
+plot_k()
+
+#l
+function simul_l()
+    mean = [0.,0.,0.]
+    C = [0.2 0 0;0 0.3 0;0 0 0.1]
+    L = 1000
+    mu = zeros(L)
+    beta = zeros(L+2)
+    y = zeros(L)
+    mu[1] = 1
+    beta[1] = 0.5
+    beta[2] = 0.7
+    beta[3] = 0.7
+
+    phi = 0.7
+
+    d = MvNormal(mean, C)
+    x = rand(d, L*2)
+    # y[1] = mu[1] + beta[1] + x[3,1]
+    for i in 1:L-1
+    beta[2] = 0.7
+        beta[i+3] = 3phi*beta[i+2] - 3phi^2*beta[i+1] + phi^3*beta[i] + x[1,i]
+        mu[i+1] = mu[i] + beta[i+3] + x[2,i]
+        y[i+1] = mu[i+1] + x[3,i]
+    end
+
+    return y
+end 
+function plot_l()
+    p = plot(simul_l())
+    plot!(simul_l())
+    plot!(simul_l())
+    plot!(simul_l())
+    plot!(simul_l())
+    savefig(p,"Modelos Estruturais\\Lista 1\\imagens\\l.png")
+end
+
+plot_l()
