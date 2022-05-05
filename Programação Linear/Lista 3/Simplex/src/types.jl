@@ -15,5 +15,4 @@ struct Output
     termination_status::Int
     base::Vector{Int}
     nbase::Vector{Int}
-
 end

@@ -20,14 +20,10 @@ function write_output(input::Input, termination_status::Int, d::Vector{})
     x_opt[base] = x
     if termination_status == 2
         output = Simplex.Output(d, Inf, termination_status, base, nbase)
-        if input.verbose == 1
-            last_log(input, termination_status, base, nbase, z, d)
-        end
+        last_log(input, termination_status, base, nbase, z, d)
     else
         output = Simplex.Output(x_opt, z, termination_status, base, nbase)
-        if input.verbose == 1
-            last_log(input, termination_status, base, nbase, z, x_opt)
-        end
+        last_log(input, termination_status, base, nbase, z, x_opt)
     end
     return output
 end
