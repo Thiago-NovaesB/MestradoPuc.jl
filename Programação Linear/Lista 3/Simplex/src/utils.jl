@@ -5,7 +5,7 @@ function create(A::Matrix{}, b::Vector{}, c::Vector{},
     return input
 end
 
-function write_output(input::Input, termination_status::Int)
+function write_output(input::Input, termination_status::Int, d::Vector{})
 
     A = input.A
     b = input.b
@@ -16,6 +16,18 @@ function write_output(input::Input, termination_status::Int)
     x = B \ b
     z = c[base]'x
 
-    output = Simplex.Output(x, z, termination_status, base, nbase)
+    x_opt = zeros(length(c))
+    x_opt[base] = x
+    if termination_status == 2
+        output = Simplex.Output(d, Inf, termination_status, base, nbase)
+        if input.verbose == 1
+            last_log(input, termination_status, base, nbase, z, d)
+        end
+    else
+        output = Simplex.Output(x_opt, z, termination_status, base, nbase)
+        if input.verbose == 1
+            last_log(input, termination_status, base, nbase, z, x_opt)
+        end
+    end
     return output
 end
