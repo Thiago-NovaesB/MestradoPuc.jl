@@ -2,7 +2,6 @@ function solve(input::Simplex.Input)
 
     midterm = MidTerm()
     if check_phase_1(input)
-        # phase_1_log(input)
         midterm.base =  collect((input.n - input.m + 1):input.n)
         midterm.nbase = collect(1:(input.n-input.m))
         val, i = findmin(input.b)
@@ -17,17 +16,16 @@ function solve(input::Simplex.Input)
         input.c[end] = -1
         input.n = input.n + 1
 
-        ################################################
-        init_log(input)
+        init_log1(input)
         while midterm.termination_status == 0 && midterm.iter < input.max_iter
             midterm = Simplex.iterate(input, midterm)
         end
         update_midterm!(input, midterm)
-        if midterm.z > input.tol
+        if midterm.z < -input.tol
             midterm.termination_status = 3 #infeasible
             output = write_output(input, midterm)
+            return output
         end
-        ##################################################
         midterm.iter = 0
         input.n = input.n - 1
         deleteat!(midterm.nbase, findall(x->x==input.n + 1,midterm.nbase))
@@ -35,12 +33,11 @@ function solve(input::Simplex.Input)
         input.A = input.A[:,1:input.n]
         midterm.termination_status = 0
     else
-        scape_log(input)
         midterm.base =  collect((input.n - input.m + 1):input.n)
         midterm.nbase = collect(1:(input.n-input.m))
     end
     
-    init_log(input)
+    init_log2(input)
     while midterm.termination_status == 0 && midterm.iter < input.max_iter
         midterm = Simplex.iterate(input, midterm)
     end
@@ -55,7 +52,6 @@ function check_phase_1(input::Simplex.Input)
 end
 
 function iterate(input::Simplex.Input, midterm::Simplex.MidTerm)
-
 
     midterm.iter += 1
     A = input.A

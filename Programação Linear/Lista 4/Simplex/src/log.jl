@@ -1,8 +1,17 @@
-function init_log(input::Simplex.Input)
+function init_log1(input::Simplex.Input)
     if input.verbose
         var = length(input.c)
         con = length(input.b)
-        println("----------------Inicio do algoritmo Simplex-----------------")
+        println("---------------Inicio do algoritmo Simplex 1----------------")
+        println("O problema possui $var variaveis e $con restrições")
+    end
+end
+
+function init_log2(input::Simplex.Input)
+    if input.verbose
+        var = length(input.c)
+        con = length(input.b)
+        println("---------------Inicio do algoritmo Simplex 2----------------")
         println("O problema possui $var variaveis e $con restrições")
     end
 end
@@ -39,11 +48,5 @@ function last_log(input::Simplex.Input, output::Simplex.Output)
         elseif output.termination_status == 3
             println("Status: Infeasible")
         end
-    end
-end
-
-function scape_log(input::Simplex.Input)
-    if input.verbose
-        println("---------------Simplex fase 1 não é necessario--------------")
     end
 end
