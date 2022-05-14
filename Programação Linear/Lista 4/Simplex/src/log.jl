@@ -47,6 +47,12 @@ function last_log(input::Simplex.Input, output::Simplex.Output)
             println("Direção extrema: $(output.x)")
         elseif output.termination_status == 3
             println("Status: Infeasible")
+        elseif output.termination_status == 0
+            println("Status: Max iteration")
+            println("Base: $(output.base)")
+            println("Não-Base: $(output.nbase)")
+            println("Função objetivo: $(output.z)")
+            println("Variaveis: $(output.x)")
         end
     end
 end

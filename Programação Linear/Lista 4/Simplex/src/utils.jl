@@ -1,5 +1,5 @@
 function create(A::Matrix{}, b::Vector{}, c::Vector{}
-                ; tol::Float64 = 1E-6, max_iter::Int = 1000,
+                ; tol::Float64 = 1E-6, max_iter::Int = 1,
                 verbose::Bool = true)
         n = length(c)
         m = length(b)
@@ -32,6 +32,9 @@ function write_output(input::Input, midterm::MidTerm)
         output = Simplex.Output(midterm.x, midterm.z, midterm.termination_status, midterm.base, midterm.nbase)
         last_log(input, output)
     elseif midterm.termination_status == 3
+        output = Simplex.Output(midterm.x, midterm.z, midterm.termination_status, midterm.base, midterm.nbase)
+        last_log(input, output)
+    elseif midterm.termination_status == 0
         output = Simplex.Output(midterm.x, midterm.z, midterm.termination_status, midterm.base, midterm.nbase)
         last_log(input, output)
     end

@@ -65,7 +65,10 @@ function iterate(input::Simplex.Input, midterm::Simplex.MidTerm)
     xB = B \ b
     y = B' \ c[base]
     midterm.red_cost = c[nbase] - N'*y
-    val, midterm.j = findmax(midterm.red_cost)
+    val = maximum(midterm.red_cost)
+    place = minimum(nbase[val .== midterm.red_cost])
+    midterm.j = findfirst(nbase .== place)
+    
     if val <= tol
         midterm.termination_status = 1
         return midterm #optimal
@@ -76,8 +79,11 @@ function iterate(input::Simplex.Input, midterm::Simplex.MidTerm)
     d[nbase[midterm.j]] = 1
     midterm.d = d
     d_base = max.(d_base, 0)
-    r = xB ./ d_base
-    val, midterm.i = findmin(r)
+    r = max.(xB, tol) ./ d_base
+    val = minimum(r)
+    place = minimum(base[val .== r])
+    midterm.i = findfirst(base .== place)
+    
     if val == Inf
         midterm.termination_status = 2
         return midterm #unbounded
