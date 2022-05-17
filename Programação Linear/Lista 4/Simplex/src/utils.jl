@@ -1,5 +1,5 @@
 function create(A::Matrix{}, b::Vector{}, c::Vector{}
-                ; tol::Float64 = 1E-6, max_iter::Int = 1,
+                ; tol::Float64 = 1E-3, max_iter::Int = 100,
                 verbose::Bool = true)
         n = length(c)
         m = length(b)

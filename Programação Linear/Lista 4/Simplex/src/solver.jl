@@ -9,9 +9,8 @@ function solve(input::Simplex.Input)
         aux = midterm.base[i]
         push!(midterm.nbase, aux)
         midterm.base[i] = input.n + 1
-
         c_mem = copy(input.c)
-        input.A = hcat(input.A,-ones(input.m)) 
+        input.A = [input.A -ones(input.m)] #hcat(input.A,-ones(input.m)) 
         input.c = zeros(input.n + 1)
         input.c[end] = -1
         input.n = input.n + 1
@@ -28,14 +27,33 @@ function solve(input::Simplex.Input)
         end
         midterm.iter = 0
         input.n = input.n - 1
-        deleteat!(midterm.nbase, findall(x->x==input.n + 1,midterm.nbase))
+        cache = findfirst(x->x==input.n + 1,midterm.nbase)
         input.c = c_mem
         input.A = input.A[:,1:input.n]
         midterm.termination_status = 0
+        if cache !== nothing
+            deleteat!(midterm.nbase, cache)
+        else
+            deleteat!(midterm.base, findfirst(x->x==input.n + 1,midterm.base))
+            push!(midterm.base, midterm.nbase[1])
+            deleteat!(midterm.nbase, 1)
+        end
+        
     else
         midterm.base =  collect((input.n - input.m + 1):input.n)
         midterm.nbase = collect(1:(input.n-input.m))
     end
+    # if cache !== nothing
+    #     deleteat!(midterm.nbase, cache)
+    # else
+    #     deleteat!(midterm.base, findfirst(x->x==input.n + 1,midterm.base))
+    #     for (k,w) in enumerate(midterm.nbase)
+    #         if abs(ones(input.m)'*input.A[:,w]) > input.tol
+    #             push!(midterm.base, w)
+    #             deleteat!(midterm.nbase, k)
+    #         end
+    #     end
+    # end
     
     init_log2(input)
     while midterm.termination_status == 0 && midterm.iter < input.max_iter
@@ -66,13 +84,15 @@ function iterate(input::Simplex.Input, midterm::Simplex.MidTerm)
     y = B' \ c[base]
     midterm.red_cost = c[nbase] - N'*y
     val = maximum(midterm.red_cost)
-    place = minimum(nbase[val .== midterm.red_cost])
-    midterm.j = findfirst(nbase .== place)
-    
+    # place = minimum(nbase[val .== midterm.red_cost])
+    # midterm.j = findfirst(nbase .== place)
+
     if val <= tol
         midterm.termination_status = 1
         return midterm #optimal
     end
+    midterm.j = findfirst(x->x>tol,midterm.red_cost)::Int64
+
     d = zeros(length(c))
     d_base = B \ N[:,midterm.j]
     d[base] = - d_base
@@ -81,8 +101,9 @@ function iterate(input::Simplex.Input, midterm::Simplex.MidTerm)
     d_base = max.(d_base, 0)
     r = max.(xB, tol) ./ d_base
     val = minimum(r)
-    place = minimum(base[val .== r])
-    midterm.i = findfirst(base .== place)
+    # place = minimum(base[val .== r])
+    # midterm.i = findfirst(base .== place)
+    midterm.i = argmin(r)
     
     if val == Inf
         midterm.termination_status = 2
