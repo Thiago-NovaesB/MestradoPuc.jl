@@ -48,7 +48,7 @@ function solve(input::Simplex.Input)
             B = view(input.A,:,midterm.base)
             for (k,w) in enumerate(midterm.nbase)
                 sol = B \ input.A[:,w]
-                if abs.(sol[l]) > 0.0
+                if abs.(sol[l]) > input.tol
                     push!(midterm.base, w)
                     deleteat!(midterm.nbase, k)
                     deleteat!(midterm.base, l)

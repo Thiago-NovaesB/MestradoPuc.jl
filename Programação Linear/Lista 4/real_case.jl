@@ -1,11 +1,11 @@
 using JuMP, GLPK, LinearAlgebra, Random
 using Simplex
 using BenchmarkTools, BenchmarkPlots, StatsPlots
-Random.seed!(12)
+Random.seed!(123)
 optimizer = () -> GLPK.Optimizer()
 
-p = 30
-k = 10
+p = 50
+k = 20
 
 e_p = rand(1:5,p)
 cc_p = rand(1:9,p)
@@ -58,10 +58,10 @@ m = p+2*k
 A = [A Matrix(I,m,m)]
 c = vcat(c',zeros(m))
 
-input = Simplex.create(A, b, c)
-output = Simplex.solve(input)
+input = Simplex.create(A, b, c, max_iter=1000, verbose=false)
+bench1 = @benchmark output = Simplex.solve(input)
 
-# function reset_solver!(A, b, c)
+function reset_solver!(A, b, c)
     model_pl = Model(optimizer);
     m = size(A,1);
     n = size(A,2) - length(b);
@@ -69,11 +69,9 @@ output = Simplex.solve(input)
     @constraint(model_pl, A*X .== b);
     @objective(model_pl, Max, c'X);
     optimize!(model_pl);
-    @show objective_value(model_pl)
-    @show output.z
-# end
+end
 
-# bench2 = @benchmark reset_solver!($A, $b, $c)
+bench2 = @benchmark reset_solver!($A, $b, $c)
 
-# plot(bench1,yaxis=:log10,st=:box)
-# plot!(bench2,yaxis=:log10,st=:box,xticks=(1:2,[" Simplex" "GLPK"]))
+plot(bench1,yaxis=:log10,st=:box)
+plot!(bench2,yaxis=:log10,st=:box,xticks=(1:2,[" Simplex" "GLPK"]))
