@@ -31,29 +31,31 @@ function solve(input::Simplex.Input)
         input.c = c_mem
         input.A = input.A[:,1:input.n]
         midterm.termination_status = 0
+        # if cache !== nothing
+        #     deleteat!(midterm.nbase, cache)
+        # else
+        #     deleteat!(midterm.base, findfirst(x->x==input.n + 1,midterm.base))
+        #     push!(midterm.base, midterm.nbase[1])
+        #     deleteat!(midterm.nbase, 1)
+        # end
         if cache !== nothing
             deleteat!(midterm.nbase, cache)
         else
             deleteat!(midterm.base, findfirst(x->x==input.n + 1,midterm.base))
-            push!(midterm.base, midterm.nbase[1])
-            deleteat!(midterm.nbase, 1)
+            for (k,w) in enumerate(midterm.nbase)
+                sol = input.A[:,midterm.base] \ input.A[:,w]
+                if maximum(abs.(input.A[:,midterm.base]*sol-input.A[:,w])) > input.tol
+                    push!(midterm.base, w)
+                    deleteat!(midterm.nbase, k)
+                    break
+                end
+            end
         end
-        
     else
         midterm.base =  collect((input.n - input.m + 1):input.n)
         midterm.nbase = collect(1:(input.n-input.m))
     end
-    # if cache !== nothing
-    #     deleteat!(midterm.nbase, cache)
-    # else
-    #     deleteat!(midterm.base, findfirst(x->x==input.n + 1,midterm.base))
-    #     for (k,w) in enumerate(midterm.nbase)
-    #         if abs(ones(input.m)'*input.A[:,w]) > input.tol
-    #             push!(midterm.base, w)
-    #             deleteat!(midterm.nbase, k)
-    #         end
-    #     end
-    # end
+    
     
     init_log2(input)
     while midterm.termination_status == 0 && midterm.iter < input.max_iter
