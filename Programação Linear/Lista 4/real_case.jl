@@ -58,7 +58,7 @@ m = p+2*k
 A = [A Matrix(I,m,m)]
 c = vcat(c',zeros(m))
 
-input = Simplex.create(A, b, c, max_iter=1000, verbose=false) samples = 100 seconds = 100
+input = Simplex.create(A, b, c, max_iter=1000, verbose=false)
 bench1 = @benchmark output = Simplex.solve(input)
 
 function reset_solver!(A, b, c)

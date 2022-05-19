@@ -35,15 +35,6 @@ function solve(input::Simplex.Input)
         if cache !== nothing
             deleteat!(midterm.nbase, cache)
         else
-            # deleteat!(midterm.base, findfirst(x->x==input.n + 1,midterm.base))
-            # for (k,w) in enumerate(midterm.nbase)
-            #     sol = input.A[:,midterm.base] \ input.A[:,w]
-            #     if maximum(abs.(input.A[:,midterm.base]*sol-input.A[:,w])) > input.tol
-            #         push!(midterm.base, w)
-            #         deleteat!(midterm.nbase, k)
-            #         break
-            #     end
-            # end
             l = findfirst(x->x==input.n + 1,midterm.base)
             B = view(input.A,:,midterm.base)
             for (k,w) in enumerate(midterm.nbase)
@@ -52,6 +43,13 @@ function solve(input::Simplex.Input)
                     push!(midterm.base, w)
                     deleteat!(midterm.nbase, k)
                     deleteat!(midterm.base, l)
+                    break
+                end
+                if k == length(midterm.nbase)
+                    input.A = input.A[1:end .!= l, :]
+                    input.b = input.b[1:end .!= l]
+                    deleteat!(midterm.base, l)
+                    input.m -= 1
                     break
                 end
             end
@@ -106,8 +104,10 @@ function iterate(input::Simplex.Input, midterm::Simplex.MidTerm)
     midterm.d = d
     d_base = max.(d_base, 0)
     r = max.(xB, tol) ./ d_base
-    val = minimum(r)
-    midterm.i = argmin(r)
+    # val = minimum(r)
+    # midterm.i = argmin(r)
+
+    val, midterm.i = findmin(r)
     
     if val == Inf
         midterm.termination_status = 2
