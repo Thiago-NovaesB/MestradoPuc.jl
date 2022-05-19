@@ -90,11 +90,13 @@ function iterate(input::Simplex.Input, midterm::Simplex.MidTerm)
     y = B' \ c[base]
     midterm.red_cost = c[nbase] - N'*y
     val = maximum(midterm.red_cost)
-
+    
     if val <= tol
         midterm.termination_status = 1
         return midterm #optimal
     end
+    # place = minimum(nbase[midterm.red_cost .> tol])
+    # midterm.j = findfirst(nbase .== place)
     midterm.j = findfirst(x->x>tol,midterm.red_cost)::Int64
 
     d = zeros(length(c))
@@ -104,10 +106,11 @@ function iterate(input::Simplex.Input, midterm::Simplex.MidTerm)
     midterm.d = d
     d_base = max.(d_base, 0)
     r = max.(xB, tol) ./ d_base
-    # val = minimum(r)
-    # midterm.i = argmin(r)
-
+    val = minimum(r)
+    midterm.i = argmin(r)
     val, midterm.i = findmin(r)
+    # place = minimum(base[val .== r])
+    # midterm.i = findfirst(base .== place)
     
     if val == Inf
         midterm.termination_status = 2
