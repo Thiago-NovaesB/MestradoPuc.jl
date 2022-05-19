@@ -29,7 +29,6 @@ function solve(input::Simplex.Input)
         input.n = input.n - 1
         cache = findfirst(x->x==input.n + 1,midterm.nbase)
         input.c = c_mem
-        # input.A = input.A[:,1:input.n]s
         midterm.termination_status = 0
 
         if cache !== nothing
@@ -95,9 +94,7 @@ function iterate(input::Simplex.Input, midterm::Simplex.MidTerm)
         midterm.termination_status = 1
         return midterm #optimal
     end
-    # place = minimum(nbase[midterm.red_cost .> tol])
-    # midterm.j = findfirst(nbase .== place)
-    midterm.j = findfirst(x->x>tol,midterm.red_cost)::Int64
+    midterm.j = findfirst(x->x>tol,midterm.red_cost)
 
     d = zeros(length(c))
     d_base = B \ N[:,midterm.j]
@@ -106,11 +103,7 @@ function iterate(input::Simplex.Input, midterm::Simplex.MidTerm)
     midterm.d = d
     d_base = max.(d_base, 0)
     r = max.(xB, tol) ./ d_base
-    val = minimum(r)
-    midterm.i = argmin(r)
     val, midterm.i = findmin(r)
-    # place = minimum(base[val .== r])
-    # midterm.i = findfirst(base .== place)
     
     if val == Inf
         midterm.termination_status = 2
