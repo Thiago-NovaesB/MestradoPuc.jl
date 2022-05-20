@@ -54,12 +54,12 @@ function build_problem(p::Integer, k::Integer)
     return A, b, c, n, m
 end
 
-p = 100
-k = 50
+p = 30
+k = 10
 A, b, c, n, m = build_problem(p, k)
 
 input = Simplex.create(A, b, c, max_iter=10000, verbose=false) 
-bench1 = @benchmark output = Simplex.solve(input) samples = 30 seconds = 1000
+bench1 = @benchmark output = Simplex.solve(input)
 
 function GLPK!(A, b, c)
     model_pl = Model(GLPK.Optimizer);
