@@ -1,6 +1,6 @@
 module Kalman
 
-using JuMP, Ipopt, LinearAlgebra, MKL
+using JuMP
 using Ipopt
 using LinearAlgebra
 using MKL
