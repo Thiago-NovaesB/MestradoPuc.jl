@@ -11,23 +11,12 @@ mutable struct Input
     verbose::Bool
 end
 
-Base.@kwdef mutable struct MidTerm
-    termination_status::Int = 0
-    iter::Int = 0
-    d_x::Vector{Float64} = []
-    d_p::Vector{Float64} = []
-    d_s::Vector{Float64} = []
-    z::Float64 = 0.0
-    x::Vector{Float64} = []
-    s::Vector{Float64} = []
-    mu::Float64 = 0.0
- 
-end
-
 struct Output
-    x::Vector{Float64}
+    x::Vector{}
+    s::Vector{}
+    p::Vector{}
+    mu::Float64
     z::Float64
     termination_status::Int
-    base::Vector{Int}
-    nbase::Vector{Int}
+    iter::Integer
 end

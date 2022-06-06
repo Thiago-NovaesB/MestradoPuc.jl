@@ -1,7 +1,7 @@
 module Simplex
 
 using LinearAlgebra
-using MKL
+# using MKL
 
 include("types.jl")
 include("utils.jl")
