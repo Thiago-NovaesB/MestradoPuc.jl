@@ -2,11 +2,17 @@ mutable struct Input
     A::Matrix{}
     b::Vector{}
     c::Vector{}
+    standard::Bool 
     n::Int
     m::Int
+    rho::Float64
+    alpha::Float64
     tol::Float64
     max_iter::Int
     verbose::Bool
+    solver::Int
+    crossover::Bool
+    crossover_tol::Float64
 end
 
 Base.@kwdef mutable struct MidTerm
@@ -22,10 +28,21 @@ Base.@kwdef mutable struct MidTerm
     red_cost::Vector{Float64} = []
 end
 
-struct Output
+struct OutputIP
+    x::Vector{}
+    s::Vector{}
+    p::Vector{}
+    mu::Float64
+    z::Float64
+    termination_status::Int
+    iter::Integer
+end
+
+struct OutputSimplex
     x::Vector{Float64}
     z::Float64
     termination_status::Int
     base::Vector{Int}
     nbase::Vector{Int}
 end
+
