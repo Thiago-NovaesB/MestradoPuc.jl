@@ -17,13 +17,19 @@ function solve_ip(input::Input)
     x = ones(n)
     s = ones(n)
     p = ones(m)
+    X = x
+    S = s
+    P = p
+    gap = []
     mu = rho*x'*s/n
 
     for iter in 1:input.max_iter
-
         F = [A zeros(m,m) zeros(m,n);
             zeros(n,n) A' I(n);
             Diagonal(s) zeros(n,m) Diagonal(x)]
+
+        @show typeof(F)
+        error()
 
         g = [A*x - b; A'p + s + c; x.*s .- mu]
         
@@ -60,30 +66,33 @@ function solve_ip(input::Input)
         s += beta_s * d_s
         z = c'x
         w = b'p
-        dual_inf = x'*s/n
+        dual_inf = x'*s
 
         if z > 1/tol
-            output = OutputIP(x,s,p,mu,Inf,2,input.max_iter)
+            output = OutputIP(x,s,p,X,S,P,gap,mu,Inf,2,input.max_iter)
             last_log(input, output)
             return output
         end
 
         if w > 1/tol
-            output = OutputIP(x,s,p,mu,-Inf,3,input.max_iter)
+            output = OutputIP(x,s,p,X,S,P,gap,mu,-Inf,3,input.max_iter)
             last_log(input, output)
             return output
         end
-
+        X = [X x]
+        S = [S s]
+        P = [P p]
+        push!(gap,dual_inf)
         iteration_log(input,iter,z,dual_inf)
-        mu = rho*dual_inf
+        mu = rho*dual_inf/n
         if mu < tol
-            output = OutputIP(x,s,p,mu,z,1,iter)
+            output = OutputIP(x,s,p,X,S,P,gap,mu,z,1,iter)
             last_log(input, output)
             return output
         end
     end
     z = c'x
-    output = OutputIP(x,s,p,mu,z,0,input.max_iter)
+    output = OutputIP(x,s,p,X,S,P,gap,mu,z,0,input.max_iter)
     last_log(input, output)
     return output
 end

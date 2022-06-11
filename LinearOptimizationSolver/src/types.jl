@@ -32,6 +32,10 @@ struct OutputIP
     x::Vector{}
     s::Vector{}
     p::Vector{}
+    X::Matrix{}
+    S::Matrix{}
+    P::Matrix{}
+    gap::Vector{}
     mu::Float64
     z::Float64
     termination_status::Int
