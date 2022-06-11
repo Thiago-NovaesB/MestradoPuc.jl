@@ -1,5 +1,5 @@
 function create(A::Matrix{}, b::Vector{}, c::Vector{};
-                standard::Bool = true, rho::Float64 = 0.95, alpha::Float64 = 0.95, tol::Float64 = 1E-6, max_iter::Int = 1000,
+                standard::Bool = true, rho::Float64 = 0.0s5, alpha::Float64 = 0.95, tol::Float64 = 1E-6, max_iter::Int = 1000,
                 verbose::Bool = true, solver::Int = 0, crossover::Bool = false, crossover_tol::Float64 = 1E-3)
         if standard
             m = length(b)

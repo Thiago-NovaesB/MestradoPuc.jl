@@ -1,4 +1,4 @@
-using LinearAlgebra, Random, JuMP, Ipopt, DataFrames, CSV, Plots
+using LinearAlgebra, Random, JuMP, Ipopt, DataFrames, CSV, Plots, Optim, Statistics
 Random.seed!(1);
 # FK - 122/156 11.05.22
 
@@ -10,6 +10,7 @@ Random.seed!(1);
 # y = rand(n);
 # Série real
 y = CSV.read("data.csv", DataFrame)[!, "Valor"];
+# y = y/1000
 n = length(y);
 # Formata série
 y = [[x] for x in y];
@@ -100,10 +101,10 @@ function get_likelihood2(des)
     for j in 3:13
         Q[j,j]=var_omega;
     end
-    @show Z
     
     # FK
-    likelihood = 0.0;
+    skip = 13
+    likelihood = -(n-skip)/2 * log(2*pi);
     for t in 1:n
 
         F = Z*P[t]*Z' + H;                        # (1,13)*(13,13)*(13,1) + (1,1) = (1,1)
@@ -113,28 +114,32 @@ function get_likelihood2(des)
         a[t+1] = T*a[t] + K*V;                    # (13,13)*(13,1) + (13,1)*(1,1) = (13,1)
         P[t+1] = T*P[t] * (T - K*Z)' + R*Q*R';    # (13,13)*(13,13) * [(13,13) - (13,1)*(1,13)]' + (13,13)*(13,13)*(13,13) = (13,13)
 
-        if t > 13
-            likelihood += (-1/2)*log(abs(F[1])) + (-1/2)*(V[1]^2)/F[1];
+        if t > skip
+            likelihood += (-1/2)*log(F[1]) + (-1/2)*(V[1]^2)/F[1];
         end
+        # Resultados armazenados para o smoother    
+        F_aux[t] = F;
+        K_aux[t] = K;
+        V_aux[t] = V;
     end
-    return likelihood
+    return -likelihood/(n-skip)
 end
 
-r = optimize(get_likelihood2, [1.0, 1.0, 1.0, 1.0], LBFGS())
+r = optimize(get_likelihood2, [sqrt(var(y)[1]), sqrt(var(y)[1]), 1.0, 1.0], LBFGS(),Optim.Options(show_trace=true)) #NelderMead
 
 model = Model(Ipopt.Optimizer);
 
 register(model, :get_likelihood, 4, get_likelihood; autodiff = true);
 
 psi = Vector{VariableRef}(undef, 4);
-# psi[1] = @variable(model, var_epsilon >= 0.0, start = 1.0);
-# psi[2] = @variable(model, var_eta >= 0.0, start = 1.0);
-# psi[3] = @variable(model, var_csi >= 0.0, start = 1.0);
-# psi[4] = @variable(model, var_omega >= 0.0, start = 1.0);
-psi[1] = @variable(model, var_epsilon >= 0.0, start = 2.4371e5);
-psi[2] = @variable(model, var_eta >= 0.0, start = 2.4371e7);
-psi[3] = @variable(model, var_csi >= 0.0, start = 24371.5);
-psi[4] = @variable(model, var_omega >= 0.0, start = 24371.5);
+psi[1] = @variable(model, var_epsilon >= 0.0, start = 1.0);
+psi[2] = @variable(model, var_eta >= 0.0, start = 1.0);
+psi[3] = @variable(model, var_csi >= 0.0, start = 1.0);
+psi[4] = @variable(model, var_omega >= 0.0, start = 1.0);
+# psi[1] = @variable(model, var_epsilon >= 0.0, start = 2.4371e5);
+# psi[2] = @variable(model, var_eta >= 0.0, start = 2.4371e7);
+# psi[3] = @variable(model, var_csi >= 0.0, start = 24371.5);
+# psi[4] = @variable(model, var_omega >= 0.0, start = 24371.5);
 @NLobjective(model, Max, get_likelihood(psi...));
 
 set_optimizer_attribute(model, "max_iter", 200);
@@ -151,7 +156,7 @@ a_otimo[1] = zeros(13);
 for index in 2:n
     a_otimo[index] = [];
     for i in 1:13
-        push!(a_otimo[index], a[index][i].value);
+        push!(a_otimo[index], a[index][i]);
     end
 end
 
@@ -159,16 +164,16 @@ end
 # Suavizador
 # ============================================================
 # Pega dados do FK
-F_otimo = [x[1].value for x in F_aux];
+F_otimo = [x[1] for x in F_aux];
 
-K_otimo = [[y.value for y in x] for x in K_aux];
+K_otimo = [[y for y in x] for x in K_aux];
 
 V_otimo = zeros(n);
 V_otimo[1] = V_aux[1][1];
-V_otimo[2:end] = [x[1].value for x in V_aux[2:end]];
+V_otimo[2:end] = [x[1] for x in V_aux[2:end]];
 
 P_otimo = P;
-P_otimo[2:end] = [[y.value for y in x] for x in P[2:end]];
+P_otimo[2:end] = [[y for y in x] for x in P[2:end]];
 
 # Suavizador
 r = Vector{Vector{Real}}(undef, n+1);
@@ -184,9 +189,12 @@ for t in n:-1:1
     N[t] = Z' * ((F_otimo[t])^(-1)) * Z + L' * N[t+1] * L;              # (13,1)*(1,1)*(1,13) + (13,13)*(13,13)*(13,13) = (13,13)
 
 end
-
-alpha_hat = a_otimo .+ P_otimo[2:end].*r[1:end-1];                      # (13,1) + (13,13)*(13,1) = (13,1)
-V_true = P_otimo[2:end] .- P_otimo[2:end].*N[1:end-1].*P_otimo[2:end];  # (13,13) - (13,13)*(13,13)*(13,13) = (13,13)
+for t in 1:n
+    alpha_hat[t] = a_otimo[t] + P_otimo[t+1]*r[t];                      # (13,1) + (13,13)*(13,1) = (13,1)
+    V_true = P_otimo[t+1] - P_otimo[t+1]*N[t]*P_otimo[t+1];  # (13,13) - (13,13)*(13,13)*(13,13) = (13,13)
+end
+# alpha_hat = a_otimo + P_otimo[2:end]*r[1:end-1];                      # (13,1) + (13,13)*(13,1) = (13,1)
+# V_true = P_otimo[2:end] - P_otimo[2:end]*N[1:end-1]*P_otimo[2:end];  # (13,13) - (13,13)*(13,13)*(13,13) = (13,13)
 
 
 # ============================================================

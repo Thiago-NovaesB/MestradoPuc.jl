@@ -13,6 +13,17 @@
         @test output.termination_status == 1
     end
 
+    @testset "Unbound" begin
+        A = [-2 1 1 0; 1 -1 0 1]
+        b = [2, 2]
+        c = [1, 1, 0, 0]
+        input = create(A, b, c, tol=1E-10, solver = 1,verbose=false)
+        output = solve(input)
+
+        @test isapprox(output.z, Inf)
+        @test output.termination_status == 2
+    end
+
     @testset "10 variables" begin
         Random.seed!(123)
         A_prime = rand(1:20,10,10)
@@ -53,6 +64,17 @@
         @test isapprox(output.x, [1.3333333333333333, 1.3333333333333335, 0.0, 0.0, 1.6666666666666667])
         @test isapprox(output.z, 9.333333333333332)
         @test output.termination_status == 1
+    end
+
+    @testset "Infeasible" begin
+        A = [2 1 1 0 0; 1 2 0 1 0; -1 -1 0 0 1]
+        b = [4, 4, -5]
+        c = [4, 3, 0, 0, 0]
+        input = create(A, b, c, tol=1E-10,solver=1,verbose=false)
+        output = solve(input)
+
+        @test output.termination_status == 3
+   
     end
 
     @testset "Cicle" begin

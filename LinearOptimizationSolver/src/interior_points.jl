@@ -5,6 +5,7 @@ function solve_ip(input::Input)
     m = input.m
     rho = input.rho
     alpha = input.alpha
+    tol = input.tol
     A = input.A
     b = input.b
     c = input.c
@@ -58,11 +59,24 @@ function solve_ip(input::Input)
         p += beta_s * d_p
         s += beta_s * d_s
         z = c'x
+        w = b'p
         dual_inf = x'*s/n
+
+        if z > 1/tol
+            output = OutputIP(x,s,p,mu,Inf,2,input.max_iter)
+            last_log(input, output)
+            return output
+        end
+
+        if w > 1/tol
+            output = OutputIP(x,s,p,mu,-Inf,3,input.max_iter)
+            last_log(input, output)
+            return output
+        end
 
         iteration_log(input,iter,z,dual_inf)
         mu = rho*dual_inf
-        if mu < input.tol
+        if mu < tol
             output = OutputIP(x,s,p,mu,z,1,iter)
             last_log(input, output)
             return output
