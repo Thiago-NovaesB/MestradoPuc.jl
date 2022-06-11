@@ -28,9 +28,6 @@ function solve_ip(input::Input)
             zeros(n,n) A' I(n);
             Diagonal(s) zeros(n,m) Diagonal(x)]
 
-        @show typeof(F)
-        error()
-
         g = [A*x - b; A'p + s + c; x.*s .- mu]
         
         d = - F \ g
