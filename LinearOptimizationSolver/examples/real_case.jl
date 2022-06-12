@@ -53,8 +53,8 @@ function build_problem(p::Integer, k::Integer)
     return A, b, c, n, m
 end
 
-p = 100
-k = 50
+p = 30
+k = 10
 A, b, c, n, m = build_problem(p, k)
 
 input = create(A, b, c, solver = 1, verbose=false) 
@@ -89,6 +89,6 @@ bench4 = @benchmark HiGHS!($A, $b, $c)
 plotd = plot(bench1,yaxis=:log10,st=:violin)
 plot!(bench2,yaxis=:log10,st=:violin,xticks=(1:2,["IP" "Simplex"]))
 plot!(bench3,yaxis=:log10,st=:violin,xticks=(1:3,["IP" "Simplex" "GLPK"]))
-plot!(bench4,yaxis=:log10,st=:violin,xticks=(1:3,["IP" "Simplex" "GLPK" "HiGHS"]))
+plot!(bench4,yaxis=:log10,st=:violin,xticks=(1:4,["IP" "Simplex" "GLPK" "HiGHS"]))
 
-savefig(plotd,"p=$(p),k=$(k).png")
+savefig(plotd,"examples\\p=$(p),k=$(k).png")
