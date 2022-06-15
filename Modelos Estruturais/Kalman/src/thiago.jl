@@ -8,8 +8,8 @@ YYYYMM = data[!,"YYYYMM"]
 index = mod.(YYYYMM,100) .!= 13 
 Value = data[!,"Value"]
 y = parse.(Float64,Value[index][1:588])
-y_insample = y[1:576]
-y_outofsample =y[577:588]
+y_insample = y[1:120]
+y_outofsample =y[121:132]
 n = length(y_insample)
 
 # ============================================================
@@ -42,7 +42,7 @@ function MEE(s::Int)
     R = I;
     return Z, T, R, m
 end
-s = 6
+s = 3
 Z, T, R, m = MEE(s)
 # ============================================================
 # Inicialização
@@ -79,7 +79,6 @@ function get_minus_log_likelihood(des)
         Q[j,j]=var_omega;
     end
     # FK
-    skip = m
     likelihood = 0.0;
     for t in 1:n
 
@@ -90,7 +89,7 @@ function get_minus_log_likelihood(des)
         a[t+1] = T*a[t] + K*V;                    
         P[t+1] = T*P[t] * (T - K*Z')' + R*Q*R'; 
 
-        if t > skip
+        if t > m
             likelihood += -log(2*pi)/2 + (-1/2)*log(F[1]) + (-1/2)*(V[1]^2)/F[1];
         end
         # Resultados armazenados para o smoother    
@@ -98,11 +97,17 @@ function get_minus_log_likelihood(des)
         K_aux[t] = K;
         V_aux[t] = V;
     end
-    return -likelihood
+    return -likelihood/(n-m)
 end
 
 res = optimize(get_minus_log_likelihood, [sqrt(var(y_insample)), sqrt(var(y_insample)), 1.0, 1.0], LBFGS(),Optim.Options(show_trace=true)) #NelderMead
 
+function AIC(ll,q,n,w)
+    return (1/(n-q))*(-2*(n-q)*ll+2*(q+w))
+end
+ll = -res.minimum*(n-m)
+@show ll
+@show AIC(ll ,m,n,4)
 # ============================================================
 # Suavizador
 # ============================================================
@@ -119,11 +124,11 @@ V_true = Vector{Matrix{Real}}(undef, n);
 for t in n:-1:1
     L = T - K_aux[t]*Z';                                              
     r[t] = Z * ((F_aux[t])^(-1)) * V_aux[t] + L'*r[t+1];     
-    N[t] = Z * ((F_otimo[t])^(-1)) * Z' + L' * N[t+1] * L;            
+    N[t] = Z * ((F_aux[t])^(-1)) * Z' + L' * N[t+1] * L;            
 end
 for t in 1:n
-    alpha_hat[t] = a_otimo[t] + P_otimo[t+1]*r[t];                     
-    V_true[t] = P_otimo[t+1] - P_otimo[t+1]*N[t]*P_otimo[t+1]; 
+    alpha_hat[t] = a[t] + P[t+1]*r[t];                     
+    V_true[t] = P[t+1] - P[t+1]*N[t]*P[t+1]; 
 end
 
 # ============================================================
@@ -132,7 +137,7 @@ end
 
 # Y
 plot(y_insample, label = "Real", legend=:bottomright)
-plot!([dot(Z,x) for x in a_otimo], label = "FK")
+plot!([dot(Z,x) for x in a], label = "FK")
 plot!([dot(Z,x) for x in alpha_hat], label = "Smoother")
 
 savefig("figs\\filter_$(s).png")
