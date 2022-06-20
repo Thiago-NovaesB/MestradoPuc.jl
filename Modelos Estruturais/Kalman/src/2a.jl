@@ -22,9 +22,9 @@ end
 
 p = plot(y_insample,label = "y",legend=:bottomright)
 savefig("figs\\y.png")
-p = plot(autocov(y_insample),label = "FAC")
+p = plot(autocor(y_insample),label = "FAC")
 savefig("figs\\FAC.png")
-p = plot(autocov(diff(y_insample, 1)),label = "FAC y\'")
+p = plot(autocor(diff(y_insample, 1)),label = "FAC y\'")
 savefig("figs\\FAC y\'.png")
-p = plot(autocov(diff(y_insample, 12)),label = "FAC y\' (12)")
+p = plot(autocor(diff(diff(y_insample, 12),1)),label = "FAC y\' (12)")
 savefig("figs\\FAC y\' (12).png")

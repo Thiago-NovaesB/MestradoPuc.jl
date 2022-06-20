@@ -1,4 +1,4 @@
-using LinearAlgebra, DataFrames, CSV, Plots, Optim, Statistics
+using LinearAlgebra, DataFrames, CSV, Plots, Optim, Statistics, Distributions
 
 # ============================================================
 # Ler dados 
@@ -42,7 +42,7 @@ function MEE(s::Int)
     R = I;
     return Z, T, R, m
 end
-s = 3
+s = 6
 Z, T, R, m = MEE(s)
 # ============================================================
 # Inicialização
@@ -58,6 +58,12 @@ F_aux = Vector{Any}(undef, n);
 K_aux = Vector{Any}(undef, n);
 V_aux = Vector{Any}(undef, n);
 
+# have_date = Vector{Bool}(undef, n)
+# have_date .= true
+
+# have_date[14:19] .= false
+# have_date[46:51] .= false
+# have_date[78:83] .= false
 # ============================================================
 # Estimação do Filtro de Kalman e cálculo da log verossimilhança
 # ============================================================
@@ -148,14 +154,151 @@ println("Slope: $(psi_val[3])")
 println("Seasonal: $(psi_val[4])")
 println("Irregular: $(psi_val[1])")
 
-# Seasonality
-plot([dot(Z[3:end],x[3:end]) for x in alpha_hat], label = "Seasonality")
-savefig("figs\\seasonality_$(s).png")
-# Level
-plot([x for x in y_insample], label = "Real")
-plot!([dot(Z[1],x[1]) for x in alpha_hat], label = "Level")
-savefig("figs\\level_$(s).png")
+V_standard = (V_aux ./ sqrt.(F_aux))[13:end]
 
-# Slope
-plot([x[2] for x in alpha_hat], label = "Slope")
-savefig("figs\\slope_$(s).png")
+p = plot(V_standard, label = "Inovação padronizada", legend=:bottomright)
+savefig("figs\\inov.png")
+p = histogram(V_standard,bins=15)
+savefig("figs\\hist.png")
+p = plot(autocor(V_standard))
+savefig("figs\\FAC_inov.png")
+p = plot(autocor((V_standard).^2))
+savefig("figs\\FAC_inov2.png")
+
+
+
+#F
+fStat = sum((V_standard[80:end]).^2) / sum((V_standard[1:40]).^2)  
+fDist = FDist(40, 40)
+fCdf = cdf(fDist, fStat)
+pValue = 1 - fCdf
+ 
+
+#chi
+fStat = 120/6*skewness(V_standard).^2 + 120/24*kurtosis(V_standard).^2
+fDist = Chi(2)
+fCdf = cdf(fDist, fStat)
+pValue = 1 - fCdf
+
+ value = (y_insample[14:19]-y_fill[14:19]).^2 + (y_insample[46:51] - y_fill[46:51]).^2 + (y_insample[78:83] - y_fill[78:83]).^2
+
+
+
+ suave = [dot(Z[3:end],x[3:end]) for x in alpha_hat]
+ janeiro = [1+12*i for i = 0:9]
+ janeiro = suave[janeiro]
+ feveveiro = [2+12*i for i = 0:9]
+ feveveiro = suave[feveveiro]
+ marco = [3+12*i for i = 0:9]
+ marco = suave[marco]
+ abril = [4+12*i for i = 0:9]
+ abril = suave[abril]
+ maio = [5+12*i for i = 0:9]
+ maio = suave[maio]
+ junho = [6+12*i for i = 0:9]
+ junho = suave[junho]
+ julho = [7+12*i for i = 0:9]
+ julho = suave[julho]
+ agosto = [8+12*i for i = 0:9]
+ agosto = suave[agosto]
+ setembro = [9+12*i for i = 0:9]
+ setembro = suave[setembro]
+ outubro = [10+12*i for i = 0:9]
+ outubro = suave[outubro]
+ novembro = [11+12*i for i = 0:9]
+ novembro = suave[novembro]
+ dezembro = [12+12*i for i = 0:9]
+ dezembro = suave[dezembro]
+
+ plot(janeiro, label = "janeiro")
+ savefig("figs\\janeiro.png")
+ plot(feveveiro, label = "feveveiro")
+ savefig("figs\\feveveiro.png")
+ plot(marco, label = "marco")
+ savefig("figs\\marco.png")
+ plot(abril, label = "abril")
+ savefig("figs\\abril.png")
+ plot(maio, label = "maio")
+ savefig("figs\\maio.png")
+ plot(junho, label = "junho")
+ savefig("figs\\junho.png")
+ plot(julho, label = "julho")
+ savefig("figs\\julho.png")
+ plot(agosto, label = "agosto")
+ savefig("figs\\agosto.png")
+ plot(setembro, label = "setembro")
+ savefig("figs\\setembro.png")
+ plot(outubro, label = "outubro")
+ savefig("figs\\outubro.png")
+ plot(novembro, label = "novembro")
+ savefig("figs\\novembro.png")
+ plot(dezembro, label = "dezembro")
+ savefig("figs\\dezembro.png")
+
+a_prev = zeros(12)
+
+for t in 1:12
+    F = Z'*P[]*Z + H;                        
+    K = T*P[t]*Z*0.0 * ((F)^(-1));               
+    V = y_insample[t] - Z'*a[t];                        
+
+    a[t+1] = T*a[t];                    
+    P[t+1] = T*P[t]; 
+end
+n = 132
+a = Vector{Vector{Real}}(undef, n+1);
+a[1] = zeros(m);
+P = Vector{Array{Real, 2}}(undef, n+1);
+P[1] = diagm([1e6 for _ in 1:m]);
+
+# Resultados armazenados para o smoother
+F_aux = Vector{Any}(undef, n);
+K_aux = Vector{Any}(undef, n);
+V_aux = Vector{Any}(undef, n);
+
+have_date = Vector{Bool}(undef, n)
+have_date .= true
+
+have_date[121:132] .= false
+function get_minus_log_likelihood_prev(des)
+
+    des_epsilon, des_eta, des_csi, des_omega = des
+    var_epsilon = des_epsilon^2
+    var_eta = des_eta^2
+    var_csi = des_csi^2
+    var_omega = des_omega^2
+    # H
+    H = var_epsilon;
+    # Q
+    Q = zeros(m,m);
+    Q[1,1] = var_eta;
+    Q[2,2] = var_csi;
+    for j in 3:m
+        Q[j,j]=var_omega;
+    end
+    # FK
+    likelihood = 0.0;
+    for t in 1:n
+        F = Z'*P[t]*Z + H;                        
+        K = T*P[t]*Z*have_date[t] * ((F)^(-1));               
+        V = y[t] - Z'*a[t];                        
+
+        a[t+1] = T*a[t] + K*V;                    
+        P[t+1] = T*P[t] * (T - K*Z')' + R*Q*R'; 
+
+        if t > m
+            likelihood += (-log(2*pi)/2 + (-1/2)*log(F[1]) + (-1/2)*(V[1]^2)/F[1])*have_date[t];
+        end
+        # Resultados armazenados para o smoother    
+        F_aux[t] = F;
+        K_aux[t] = K;
+        V_aux[t] = V;
+    end
+    return -likelihood/(n-m)
+end
+
+plot(y[121:132], label = "Original",legend=:bottomright)
+plot!([dot(Z,x) for x in a[121:132]], label = "FK")
+plot!([dot(Z,x) for x in a[121:132]] + 1.96*sqrt.(F_aux[121:132]), label = "FK + 1.96dp")
+plot!([dot(Z,x) for x in a[121:132]] - 1.96*sqrt.(F_aux[121:132]), label = "FK - 1.96dp")
+savefig("figs\\prev.png")
