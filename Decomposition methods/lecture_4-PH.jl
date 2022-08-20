@@ -205,3 +205,4 @@ function progressive_hedging_heuristic(ins; max_iter = 200)
 end
 
 x_s, y_s = progressive_hedging(instance, max_iter = 500)
+x_s, y_s = progressive_hedging_heuristic(instance, max_iter = 500)
