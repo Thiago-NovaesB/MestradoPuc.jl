@@ -158,4 +158,72 @@ function progressive_hedging(ins; max_iter = 200)
     return z2
 end
 
+function progressive_hedging_heuristic(ins; max_iter = 200)
+    
+    I = ins.I 
+    S = ins.S
+    P = ins.P
+
+    k = 1
+    ϵ = 0.001
+    μ = zeros(length(I), length(S))
+    y_s = zeros(length(I), length(S))
+    z2 = zeros(length(I))
+    residual_p = Inf
+    residual_d = Inf
+    residual = Inf
+    residual_sp = zeros(length(S))
+    residual_sd = zeros(length(S))
+    LB_aug_s = zeros(length(S))
+    LB_aug = -Inf
+    ρ = 0.25
+
+    start = time()    
+
+    while k <= max_iter && residual > ϵ
+        
+        for s in S
+            y_s[:,s], LB_aug_s[s] = generate_and_solve_subproblem(ins, s, μ, z2, ρ)
+            residual_sp[s] = P[s] * norm(y_s[:,s] - sum(P[s] * y_s[:,s] for s in S))^2 
+            residual_sd[s] = P[s] * norm(sum(P[s] * y_s[:,s] for s in S) - z2)^2 
+        end
+        
+        LB_aug = sum(P[s] * LB_aug_s[s] for s in S)
+        residual_p = sum(residual_sp)
+        residual_d = sum(residual_sd)
+        residual = residual_p+residual_d
+        
+        if residual <= ϵ
+            stop = time()
+            println("Algorithm converged.")
+            println("\nOptimal found: \n Objective value: $(round(LB_aug, digits=2)) \n Total time: $(round(stop-start, digits=2))s \n Residual: $(round(residual, digits=4))\n")
+            return z2
+        else    
+
+            # z-update
+            z2 = sum(P[s] * y_s[:,s] for s in S)
+            if sqrt(residual_p) > 10*sqrt(residual_d)
+                ρ = 2*ρ
+            elseif sqrt(residual_d) > 10*sqrt(residual_p)
+                ρ = 0.5*ρ
+            else
+                ρ = ρ
+            end
+            # dual update
+            for s in S
+                μ[:,s] = μ[:,s] + ρ.*(y_s[:,s] - z2)
+            end
+            
+            if k % 5 ==0 
+                println("Iter $(k): residual: $(round(residual, digits = 4))") 
+            end    
+
+            k = k + 1
+        end
+    end
+    println("Maximum number of iterations exceeded.")
+    return z2
+end
+
 z = progressive_hedging(instance, max_iter = 1000)
+z = progressive_hedging_heuristic(instance, max_iter = 1000)
