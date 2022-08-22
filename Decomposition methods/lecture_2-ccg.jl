@@ -186,6 +186,51 @@ function generate_and_solve_dualized_subproblem(instance, x_bar, y_bar, Γ)
    return d_bar, opt_value
 end
 
+function generate_and_solve_dualized_subproblem_discrete(instance, x_bar, y_bar, Γ)
+    
+    I, J, S, N, P, O, V, U, T, D, bigM, D_average, D_deviation = unroll_instance(instance)
+     
+    sub_dual = Model(solver)
+    set_optimizer_attribute(sub_dual, "NonConvex", 2) # Call spatial BB solver
+ 
+    set_silent(sub_dual)
+     
+    @variable(sub_dual, u[I] <= 0)
+    @variable(sub_dual, q[I] <= 0)
+    @variable(sub_dual, r[J] >= 0)
+    @variable(sub_dual, 0 <= g[S] <= 1)
+    @variable(sub_dual, d[J] >= 0)
+ 
+    @constraint(sub_dual, [i in I, j in J], 
+       u[i] + q[i] + r[j] <= T[i,j]
+    )
+    @constraint(sub_dual, [j in J], 
+       r[j] <= U
+    )
+ 
+    # Uncertainty set
+    @constraint(sub_dual, [j in J],
+       d[j] == sum(D[j,:].*g) 
+    )
+ 
+    @constraint(sub_dual,
+       sum(g) == 1
+    )
+ 
+    @objective(sub_dual, Max,  
+       sum(bigM * x_bar[i] * q[i] for i in I) +
+       sum(y_bar[i] * u[i] for i in I) +
+       sum(d[j] * r[j] for j in J) 
+    )   
+    
+    optimize!(sub_dual)
+     
+    d_bar = value.(sub_dual[:d])                     
+    opt_value = objective_value(sub_dual)
+     
+    return d_bar, opt_value
+ end
+
 
 # Uses the result that g is always integer anyways and apply linearisation
 function generate_and_solve_linearized_subproblem(instance, x_bar, y_bar, Γ)
@@ -292,6 +337,55 @@ function generate_and_solve_bilevel_subproblem(instance, x_bar, y_bar, Γ)
    return d_bar, opt_value
  end
 
+ function generate_and_solve_bilevel_subproblem_discret(instance, x_bar, y_bar, Γ)
+    
+    I, J, S, K, P, O, V, U, T, D, bigM, D_average, D_deviation = unroll_instance(instance)
+      
+    sub_dual = BilevelModel(solver, mode = BilevelJuMP.SOS1Mode()) 
+    set_silent(sub_dual)
+      
+    @variable(Upper(sub_dual), d[J] >= 0)
+    @variable(Upper(sub_dual), 0 <= g[S] <= 1)
+    @variable(Lower(sub_dual), w[I,J] >= 0)
+    @variable(Lower(sub_dual), z[J] >= 0)
+  
+    @constraint(Lower(sub_dual), capBal[i in I],
+       sum(w[i,j] for j in J) <=  y_bar[i]
+    )
+ 
+    @constraint(Lower(sub_dual), capLoc[i in I], 
+       sum(w[i,j] for j in J) <= x_bar[i] * bigM
+    )
+    
+    @constraint(Lower(sub_dual), demBal[j in J],
+       sum(w[i,j] for i in I) >= d[j] - z[j]
+    )
+
+    # Uncertainty set
+    @constraint(Upper(sub_dual), [j in J],
+        d[j] == sum(D[j,:].*g) 
+     )
+ 
+    @constraint(Upper(sub_dual),
+       sum(g) == 1
+    )
+   
+    @objective(Lower(sub_dual), Min, 
+       sum(T[i,j] * w[i,j] for i in I, j in J) + sum(U * z[j] for j in J)
+    ) 
+ 
+    @objective(Upper(sub_dual), Max, 
+       sum(T[i,j] * w[i,j] for i in I, j in J) + sum(U * z[j] for j in J)
+    ) 
+    
+    optimize!(sub_dual)
+    
+    d_bar = [value(d[j]) for j in J]                 
+    opt_value = objective_value(sub_dual)
+    
+    return d_bar, opt_value
+  end
+
  function cc_decomposition(ins; max_iter = 10, Γ = 10, sub_method = :linear)
     k = 1
     ϵ = 1e-4
@@ -347,7 +441,7 @@ end
 
 @time x_bar, y_bar, UB = cc_decomposition(instance, max_iter = 10, Γ = 5, sub_method = :linear)
 # @time x_bar, y_bar, UB = cc_decomposition(instance, max_iter = 10, Γ = 5, sub_method = :dual)
-@time x_bar, y_bar, UB = cc_decomposition(instance, max_iter = 10, Γ = 5, sub_method = :bilevel)
+# @time x_bar, y_bar, UB = cc_decomposition(instance, max_iter = 10, Γ = 5, sub_method = :bilevel)
 
 UB_k = []
 for i in 1:15
