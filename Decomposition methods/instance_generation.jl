@@ -1,5 +1,6 @@
-using HiGHS
-solver = ()->HiGHS.Optimizer()
+using Gurobi
+const GRB_ENV = Gurobi.Env()
+myGurobi = ()->Gurobi.Optimizer(GRB_ENV)
 
 using JuMP
 using Plots
@@ -77,7 +78,7 @@ function generate_full_problem(instance::Instance)
     I, J, S, N, P, O, V, U, T, D, bigM = unroll_instance(instance)
 
     # Initialize model
-    m = Model(solver)
+    m = Model(myGurobi)
     
     # Decision variables
     @variable(m, x[I], Bin)     # 1 if facility is located at i ∈ I, 0 otherwise.

@@ -1,7 +1,7 @@
 ## Lecture 1 - Benders decomposition
 
 # Include random instance generation and solving the 2SSP
-include("instance_generation.jl")
+include("$(pwd())/instance_generation.jl")
 
 # Generating an instance and solving full space for checking
 TotalFacilities = 10
@@ -17,26 +17,7 @@ optimize!(fullmodel)
 ## Benders decomposition
 
 # Generates the main problem
-function generate_main_single(instance)
-    
-    I, J, S, N, P, O, V, U, T, D, bigM = unroll_instance(instance)
-    
-    main = Model(myGurobi)
-    set_silent(main)
-    
-    @variable(main, x[I], Bin)
-    @variable(main, y[I] >= 0)
-    @variable(main, θ)
-
-    @constraint(main, sum(x[i] for i in I) <= N)
-    @constraint(main, sum(y[i] for i in I) <= bigM) # This is to guarantee boundedness
-
-    @objective(main, Min, sum(O[i] * x[i] + V[i] * y[i] for i in I) + θ)
-
-    return main  
-end
-
-function generate_main_multi(instance)
+function generate_main_mc(instance)
     
     I, J, S, N, P, O, V, U, T, D, bigM = unroll_instance(instance)
     
@@ -50,20 +31,15 @@ function generate_main_multi(instance)
     @constraint(main, sum(x[i] for i in I) <= N)
     @constraint(main, sum(y[i] for i in I) <= bigM) # This is to guarantee boundedness
 
-    @objective(main, Min, sum(O[i] * x[i] + V[i] * y[i] for i in I) + sum(θ))
+    @objective(main, Min, sum(O[i] * x[i] + V[i] * y[i] for i in I) + sum(θ[s] for s in S))
 
     return main  
 end
 
 # Solve the main problem
-function solve_main_single(main)
+function solve_main_mc(main)
     optimize!(main)
-    return value.(main[:x]), value.(main[:y]), value(main[:θ]), objective_value(main)    
-end
-
-function solve_main_multi(main)
-    optimize!(main)
-    return value.(main[:x]), value.(main[:y]), value.(main[:θ]), objective_value(main)    
+    return value.(main[:x]), value.(main[:y]), value.(main[:θ]), objective_value(main)
 end
 
 #= Generate and solve the primal subproblem for a given x_bar. 
@@ -140,38 +116,19 @@ function generate_and_solve_dual_subproblem(instance, x_bar, y_bar)
  end
 
 
-@show x_bar = Int.(round.(value.(fullmodel[:x]).data))
-@show y_bar = value.(fullmodel[:y])
+# @show x_bar = Int.(round.(value.(fullmodel[:x]).data))
+# @show y_bar = value.(fullmodel[:y])
 
-u_bar, q_bar, r_bar, dual_obj = generate_and_solve_dual_subproblem(instance, x_bar, y_bar)
-primal_obj = generate_and_solve_primal_subproblem(instance, x_bar, y_bar)
+# u_bar, q_bar, r_bar, dual_obj = generate_and_solve_dual_subproblem(instance, x_bar, y_bar)
+# primal_obj = generate_and_solve_primal_subproblem(instance, x_bar, y_bar)
 
-# Test that the primal and dual solutions are the same
-# This throws an error if they do not match
-@assert(primal_obj ≈ dual_obj) 
+# # Test that the primal and dual solutions are the same
+# # This throws an error if they do not match
+# @assert(primal_obj ≈ dual_obj) 
 
 
 # Add the Benders cut, given current dual values
-function add_benders_single_cut(instance, main, u_bar, q_bar, r_bar)   
-    
-    I, J, S, N, P, O, V, U, T, D, bigM = unroll_instance(instance)
-    
-    x = main[:x]
-    y = main[:y]
-    θ = main[:θ]
-
-    @constraint(main, 
-        θ >= sum( 
-                sum(bigM * x[i] * q_bar[i,s] for i in I) +
-                sum(y[i] * u_bar[i,s] for i in I) +
-                sum(D[j,s] * r_bar[j,s] for j in J) 
-            for s in S) 
-    )
-
-    return main
-end  
-
-function add_benders_multi_cut(instance, main, u_bar, q_bar, r_bar)   
+function add_benders_cut_mc(instance, main, u_bar, q_bar, r_bar)   
     
     I, J, S, N, P, O, V, U, T, D, bigM = unroll_instance(instance)
     
@@ -182,52 +139,13 @@ function add_benders_multi_cut(instance, main, u_bar, q_bar, r_bar)
     @constraint(main, [s in S],
         θ[s] >= sum(bigM * x[i] * q_bar[i,s] for i in I) +
                 sum(y[i] * u_bar[i,s] for i in I) +
-                sum(D[j,s] * r_bar[j,s] for j in J) 
+                sum(D[j,s] * r_bar[j,s] for j in J)
     )
 
     return main
-end  
-
-
-# The main function code
-function benders_decomposition_single(ins; max_iter = 100)
-    k = 1
-    ϵ = 1e-4
-    LB = -Inf
-    UB = +Inf
-    gap = +Inf
-    x_bar = zeros(length(ins.I))
-    y_bar = zeros(length(ins.I))
-    
-    start = time()    
-    println("\nStarting Benders decomposition...\n")
-    u_bar, q_bar, r_bar, f_sub = generate_and_solve_dual_subproblem(ins, x_bar, y_bar);
-    main = generate_main_single(ins)
-    main = add_benders_single_cut(ins, main, u_bar, q_bar, r_bar) 
-
-    while k <= max_iter && gap > ϵ
-        x_bar, y_bar, θ_bar, f_main = solve_main_single(main);
-        u_bar, q_bar, r_bar, f_sub = generate_and_solve_dual_subproblem(ins, x_bar, y_bar);
-
-        LB = f_main
-        UB = min(UB, f_main - θ_bar + f_sub)
-        gap = abs((UB - LB) / UB)
-        println("Iter $(k): UB: $(round(UB, digits=2)), LB: $(round(LB, digits=2)), gap $(round(100.0*gap, digits=4))%")
-        
-        if gap <= ϵ
-            stop = time()
-            println("\nOptimal found. \nObjective value: $(round(UB, digits=2)) \n Total time: $(round(stop-start, digits=2))s \n gap: $(round(100.0*gap, digits=4))%\n")
-            return round(UB, digits=2)
-        else    
-            main = add_benders_single_cut(ins, main, u_bar, q_bar, r_bar)  
-            k += 1
-        end
-    end
-    println("Maximum number of iterations exceeded")
-    return
 end
 
-function benders_decomposition_multi(ins; max_iter = 100)
+function benders_decomposition_mc(ins; max_iter = 100)
     k = 1
     ϵ = 1e-4
     LB = -Inf
@@ -239,11 +157,11 @@ function benders_decomposition_multi(ins; max_iter = 100)
     start = time()    
     println("\nStarting Benders decomposition...\n")
     u_bar, q_bar, r_bar, f_sub = generate_and_solve_dual_subproblem(ins, x_bar, y_bar);
-    main = generate_main_multi(ins)
-    main = add_benders_multi_cut(ins, main, u_bar, q_bar, r_bar) 
+    main = generate_main_mc(ins)
+    main = add_benders_cut_mc(ins, main, u_bar, q_bar, r_bar)
 
     while k <= max_iter && gap > ϵ
-        x_bar, y_bar, θ_bar, f_main = solve_main_multi(main);
+        x_bar, y_bar, θ_bar, f_main = solve_main_mc(main);
         u_bar, q_bar, r_bar, f_sub = generate_and_solve_dual_subproblem(ins, x_bar, y_bar);
 
         LB = f_main
@@ -254,20 +172,15 @@ function benders_decomposition_multi(ins; max_iter = 100)
         if gap <= ϵ
             stop = time()
             println("\nOptimal found. \nObjective value: $(round(UB, digits=2)) \n Total time: $(round(stop-start, digits=2))s \n gap: $(round(100.0*gap, digits=4))%\n")
-            return round(UB, digits=2)
+            return
         else    
-            main = add_benders_multi_cut(ins, main, u_bar, q_bar, r_bar)  
+            main = add_benders_cut_mc(ins, main, u_bar, q_bar, r_bar)  
             k += 1
         end
     end
     println("Maximum number of iterations exceeded")
-    return
 end
 
-UB1 = benders_decomposition_single(instance, max_iter = 100)
-UB2 = benders_decomposition_multi(instance, max_iter = 100)
-obj = objective_value(fullmodel);
 
-println("Orignal problem: $(obj)")
-println("Single Cut: $(UB1)")
-println("Multi Cut: $(UB2)")
+benders_decomposition_mc(instance, max_iter = 100)
+@show obj = objective_value(fullmodel);

@@ -1,5 +1,4 @@
-
-include("instance_generation.jl")
+include("$(pwd())/instance_generation.jl")
 
 TotalFacilities = 10
 TotalClients = 50
@@ -51,18 +50,19 @@ function generate_full_problem_binary(instance::Instance)
     return m  # Return the generated model
 end
 
-fullmodel = generate_full_problem_binary(instance)
-optimize!(fullmodel)
+# fullmodel = generate_full_problem_binary(instance)
+# optimize!(fullmodel)
 
-# Examine the solutions
-@show x_bar = Int.(round.(value.(fullmodel[:x]).data))
-@show obj = objective_value(fullmodel)
+# # Examine the solutions
+# @show x_bar = Int.(round.(value.(fullmodel[:x]).data))
+# @show obj = objective_value(fullmodel)
 
 
 ## Generates the main problem
-function generate_and_solve_lagrangian_subproblem_symmetric(instance, λ)
+function generate_and_solve_lagrangian_subproblem(instance, λ, reference_scenario)
     
     I, J, S, N, P, O, V, U, T, D, bigM = unroll_instance(instance)
+    S_neq_ref = filter!(!isequal(reference_scenario),collect(instance.S))
     
     lag_sub = Model(myGurobi)
     set_silent(lag_sub)
@@ -88,7 +88,7 @@ function generate_and_solve_lagrangian_subproblem_symmetric(instance, λ)
     @constraint(lag_sub, demBal[j in J, s in S],
         sum(w[i,j,s] for i in I) >= D[j,s] - z[j,s]
     )
-
+    
     # The two-stage objective function
     @objective(lag_sub, Min,
         sum(P[s] * (      
@@ -96,51 +96,7 @@ function generate_and_solve_lagrangian_subproblem_symmetric(instance, λ)
             sum(T[i,j] * w[i,j,s] for i in I, j in J) + 
             sum(U * z[j,s] for j in J)) 
             for s in S) +
-        sum(λ[i,s] * (x[i,s] - x[i,s+1]) for i in I, s in 1:length(S)-1) # Lag. term
-    )
-
-    optimize!(lag_sub)
-
-    return value.(lag_sub[:x]), objective_value(lag_sub)
-end
-
-function generate_and_solve_lagrangian_subproblem_asymmetric(instance, λ)
-    
-    I, J, S, N, P, O, V, U, T, D, bigM = unroll_instance(instance)
-    
-    lag_sub = Model(myGurobi)
-    set_silent(lag_sub)
-
-    # Decision variables
-    @variable(lag_sub, x[I,S], Bin) # 1 if facility is located at i ∈ I, 0 otherwise.
-    @variable(lag_sub, w[I,J,S] >= 0) # Flow between facility i ∈ I and client j ∈ J in scenario s ∈ S
-    @variable(lag_sub, z[J,S] >= 0) # Shortage in location j ∈ J in scenario s ∈ S
-
-    # Constraints
-    # Maximum number of servers
-    @constraint(lag_sub, numServers[s in S],
-        sum(x[i,s] for i in I) <= N
-    )
-    
-    # Capacity limits: cannot deliver more than capacity decided, 
-    #   and only if facility was located
-    @constraint(lag_sub, capLoc[i in I, s in S], 
-        sum(w[i,j,s] for j in J) <= x[i,s] * bigM
-    )
-    
-    # Demand balance: Demand of active clients must be fulfilled
-    @constraint(lag_sub, demBal[j in J, s in S],
-        sum(w[i,j,s] for i in I) >= D[j,s] - z[j,s]
-    )
-
-    # The two-stage objective function
-    @objective(lag_sub, Min,
-        sum(P[s] * (      
-            sum(O[i] * x[i,s] for i in I) +
-            sum(T[i,j] * w[i,j,s] for i in I, j in J) + 
-            sum(U * z[j,s] for j in J)) 
-            for s in S) +
-        sum(λ[i,s] * (x[i,end] - x[i,s]) for i in I, s in 1:length(S)-1) # Lag. term
+        sum(λ[i,s] * (x[i,s] - x[i,reference_scenario]) for i in I, s in S_neq_ref) # Lag. term
     )
 
     optimize!(lag_sub)
@@ -149,16 +105,17 @@ function generate_and_solve_lagrangian_subproblem_asymmetric(instance, λ)
 end
 
 
-function update_lagrangian_multipliers_subgradient(λ, g_x, UB, LB, k, ϵ)
+function update_lagrangian_multipliers_subgradient(λ, g_x, UB, LB, k, ϵ, reference_scenario)
 
     TotalServers, TotalScenarios = size(g_x)
     I = 1:TotalServers
     S = 1:TotalScenarios
+    S_neq_ref = filter!(!isequal(reference_scenario),collect(instance.S))
     
     α = 0.1
 
-    if sum(g_x[i,s]^2 for i in I, s in 1:length(S)-1) > ϵ 
-        η = α*(UB - LB) / sum(g_x[i,s]^2 for i in I, s in 1:length(S)-1)
+    if sum(g_x[i,s]^2 for i in I, s in S_neq_ref) > ϵ 
+        η = α*(UB - LB) / sum(g_x[i,s]^2 for i in I, s in S_neq_ref)
     else
         η = 0.0
     end
@@ -184,34 +141,35 @@ function generate_bundle_subproblem(ins)
 end
 
 
-function update_bundle_subproblem(dual_sub, λ_k, α, g_x, CG_λ, LB_k)
+function update_bundle_subproblem(dual_sub, λ_k, α, g_x, CG_λ, LB_k, reference_scenario)
     
     TotalFacilities, TotalScenarios = size(g_x)
     I = 1:TotalFacilities
     S = 1:TotalScenarios
+    S_neq_ref = filter!(!isequal(reference_scenario),collect(instance.S))
     
     λ = dual_sub[:λ]
     θ = dual_sub[:θ]
     
     @objective(dual_sub, Max, θ - 
-        α * sum((λ[i,s] - CG_λ[i,s])^2 for i in I, s in 1:length(S)-1)
+        α * sum((λ[i,s] - CG_λ[i,s])^2 for i in I, s in S_neq_ref)
     )
     
     @constraint(dual_sub, θ <= LB_k +
-        sum(g_x[i,s] * (λ[i,s] - λ_k[i,s]) for i in I, s = 1:length(S)-1)
+        sum(g_x[i,s] * (λ[i,s] - λ_k[i,s]) for i in I, s in S_neq_ref)
     )
     
     return dual_sub
 end
 
 
-function update_lagrangian_multipliers_bundle(dual_sub, λ_k, g_x, CG_λ, DV_CG, LB_k)
+function update_lagrangian_multipliers_bundle(dual_sub, λ_k, g_x, CG_λ, DV_CG, LB_k, reference_scenario)
 
     # Bundle method parametrisation
     m = 0.125
     α = 10.0
 
-    dual_sub = update_bundle_subproblem(dual_sub, λ_k, α, g_x, CG_λ, LB_k)
+    dual_sub = update_bundle_subproblem(dual_sub, λ_k, α, g_x, CG_λ, LB_k, reference_scenario)
 
     optimize!(dual_sub)
 
@@ -239,7 +197,7 @@ function lagrangian_heuristic(ins, x_s)
 
     n = 0 # counter to not violate limit N
     for i in shuffle(I)
-        if n > N || x_bar[i] < 0.6 # threshold for deciding  
+        if n > N || x_bar[i] < 0.6 # threshold for deciding
             x_bar[i] = 0
         else  
             x_bar[i] = 1
@@ -289,7 +247,8 @@ end
 
 
 
-function lagrangian_decomposition_symmetric(ins; max_iter = 200, method=:bundle, heuristic_frenquency=10)
+function lagrangian_decomposition(ins; max_iter = 200, method=:bundle, heuristic_frenquency=10, reference_scenario = 1)
+    @show reference_scenario
     k = 1
     ϵ = 0.01
     λ_k = zeros(length(ins.I), length(ins.S))
@@ -301,6 +260,7 @@ function lagrangian_decomposition_symmetric(ins; max_iter = 200, method=:bundle,
     LB = -Inf
     UB = Inf
     residual = Inf
+    S_neq_ref = filter!(!isequal(reference_scenario),collect(ins.S))
 
     # Bundle method related parameters 
     CG_λ = λ_k   # centre of gravity
@@ -309,7 +269,7 @@ function lagrangian_decomposition_symmetric(ins; max_iter = 200, method=:bundle,
     start = time()    
 
     while k <= max_iter && residual > ϵ  
-        x_s, LB_k = generate_and_solve_lagrangian_subproblem_symmetric(ins, λ_k)  
+        x_s, LB_k = generate_and_solve_lagrangian_subproblem(ins, λ_k, reference_scenario)  
         x_s = x_s.data
         
         if k == 1
@@ -320,12 +280,12 @@ function lagrangian_decomposition_symmetric(ins; max_iter = 200, method=:bundle,
             UB = min(UB, UB_k)
         end  
 
-        for s in 1:length(ins.S)-1        
-            g_x[:,s] = x_s[:,s] - x_s[:,s+1]
+        for s in S_neq_ref        
+            g_x[:,s] = x_s[:,s] - x_s[:,reference_scenario]
         end  
         
         # Calculate residual
-        residual = sqrt(sum(sum(g_x[:,s].^2 for s in 1:length(ins.S)-1)))   
+        residual = sqrt(sum(sum(g_x[:,s].^2 for s in S_neq_ref)))
         
         # Check for convergence
         if residual <= ϵ
@@ -335,90 +295,26 @@ function lagrangian_decomposition_symmetric(ins; max_iter = 200, method=:bundle,
                                       \n Residual: $(round(residual, digits=4))"
             )
             return x_s, LB_k
-        end         
+        end
         
         if method == :bundle
             dual_sub, λ_k, CG_λ, DV_CG = 
-                update_lagrangian_multipliers_bundle(dual_sub, λ_k, g_x, CG_λ, DV_CG, LB_k)
+                update_lagrangian_multipliers_bundle(dual_sub, λ_k, g_x, CG_λ, DV_CG, LB_k, reference_scenario)
         elseif method == :subgradient
-            λ_k = update_lagrangian_multipliers_subgradient(λ_k, g_x, UB, LB_k, k, ϵ)
+            λ_k = update_lagrangian_multipliers_subgradient(λ_k, g_x, UB, LB_k, k, ϵ, reference_scenario)
         else
             error("Unknown dual update method")
         end
 
-        println("Iter $(k): UB: $(round(UB, digits=2)), LB: $(round(LB_k, digits=2)), residual: $(round(residual, digits = 4))")        
+        println("Iter $(lpad(k,4,"0")): UB: $(Printf.@sprintf("%0.3e", UB)), LB: $(Printf.@sprintf("%0.3e", LB_k)), residual: $(Printf.@sprintf("%0.3e", residual))")        
         k += 1
     end
     println("Maximum number of iterations exceeded")
     return x_s, LB
 end
 
-function lagrangian_decomposition_asymmetric(ins; max_iter = 200, method=:bundle, heuristic_frenquency=10)
-    k = 1
-    ϵ = 0.01
-    λ_k = zeros(length(ins.I), length(ins.S))
-    x_s = zeros(length(ins.I), length(ins.S))
-    g_x = zeros(length(ins.I), length(ins.S))
-    UB_k = 0.0 
-    LB_k = 0.0
-    DV_CG = 0.0 
-    LB = -Inf
-    UB = Inf
-    residual = Inf
 
-    # Bundle method related parameters 
-    CG_λ = λ_k   # centre of gravity
-    dual_sub = generate_bundle_subproblem(ins)
+x_s, LB = lagrangian_decomposition(instance, max_iter=5, method = :subgradient, reference_scenario = 10)
+x_s, LB = lagrangian_decomposition(instance, max_iter=50, method = :bundle, reference_scenario = 10)
 
-    start = time()    
-
-    while k <= max_iter && residual > ϵ  
-        x_s, LB_k = generate_and_solve_lagrangian_subproblem_asymmetric(ins, λ_k)  
-        x_s = x_s.data
-        
-        if k == 1
-            DV_CG = LB_k # dual function value at the centre of gravity
-            UB = lagrangian_heuristic(ins, x_s)
-        elseif k % heuristic_frenquency == 0
-            UB_k = lagrangian_heuristic(ins, x_s)
-            UB = min(UB, UB_k)
-        end  
-
-        for s in 1:length(ins.S)-1        
-            g_x[:,s] = x_s[:,end] - x_s[:,s]
-        end  
-        
-        # Calculate residual
-        residual = sqrt(sum(sum(g_x[:,s].^2 for s in 1:length(ins.S)-1)))   
-        
-        # Check for convergence
-        if residual <= ϵ
-            stop = time()
-            println("\nOptimal found. \n Objective value: $(round(LB_k, digits=2)) 
-                                      \n Total time: $(round(stop-start, digits=2))s 
-                                      \n Residual: $(round(residual, digits=4))"
-            )
-            return x_s, LB_k
-        end         
-        
-        if method == :bundle
-            dual_sub, λ_k, CG_λ, DV_CG = 
-                update_lagrangian_multipliers_bundle(dual_sub, λ_k, g_x, CG_λ, DV_CG, LB_k)
-        elseif method == :subgradient
-            λ_k = update_lagrangian_multipliers_subgradient(λ_k, g_x, UB, LB_k, k, ϵ)
-        else
-            error("Unknown dual update method")
-        end
-
-        println("Iter $(k): UB: $(round(UB, digits=2)), LB: $(round(LB_k, digits=2)), residual: $(round(residual, digits = 4))")        
-        k += 1
-    end
-    println("Maximum number of iterations exceeded")
-    return x_s, LB
-end
-
-x_s, LBs = lagrangian_decomposition_symmetric(instance, max_iter=50, method = :bundle)
-x_sa, LBa = lagrangian_decomposition_asymmetric(instance, max_iter=50, method = :bundle)
-
-println("Symmetric: $(LBs)")
-println("Asymmetric: $(LBa)")
+display(x_s)

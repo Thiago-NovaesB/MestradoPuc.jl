@@ -19,7 +19,7 @@ function generate_and_solve_subproblem(instance, scenario, λ, μ, z1, z2, ρ)
     
     I, J, S, N, P, O, V, U, T, D, bigM = unroll_instance(instance)
     
-    lag_sub = Model(solver)
+    lag_sub = Model(myGurobi)
     set_silent(lag_sub)
 
     # Decision variables
