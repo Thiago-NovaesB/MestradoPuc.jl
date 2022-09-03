@@ -184,6 +184,9 @@ function progressive_hedging_heuristic(ins; max_iter = 200)
         
         for s in S
             y_s[:,s], LB_aug_s[s] = generate_and_solve_subproblem(ins, s, μ, z2, ρ)
+        end
+
+        for s in S
             residual_sp[s] = P[s] * norm(y_s[:,s] - sum(P[s] * y_s[:,s] for s in S))^2 
             residual_sd[s] = P[s] * norm(sum(P[s] * y_s[:,s] for s in S) - z2)^2 
         end
@@ -225,5 +228,5 @@ function progressive_hedging_heuristic(ins; max_iter = 200)
     return z2
 end
 
-z = progressive_hedging(instance, max_iter = 1000)
-z = progressive_hedging_heuristic(instance, max_iter = 1000)
+z1 = progressive_hedging(instance, max_iter = 1000)
+z2 = progressive_hedging_heuristic(instance, max_iter = 1000)

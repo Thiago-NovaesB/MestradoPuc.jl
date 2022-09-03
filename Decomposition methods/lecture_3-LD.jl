@@ -417,8 +417,12 @@ function lagrangian_decomposition_asymmetric(ins; max_iter = 200, method=:bundle
     return x_s, LB
 end
 
-x_s, LBs = lagrangian_decomposition_symmetric(instance, max_iter=50, method = :bundle)
-x_sa, LBa = lagrangian_decomposition_asymmetric(instance, max_iter=50, method = :bundle)
+x_s1, LBs1 = lagrangian_decomposition_symmetric(instance, max_iter=50, method = :subgradient)
+x_s2, LBs2 = lagrangian_decomposition_symmetric(instance, max_iter=50, method = :bundle)
+x_sa1, LBa1 = lagrangian_decomposition_asymmetric(instance, max_iter=50, method = :subgradient)
+x_sa2, LBa2 = lagrangian_decomposition_asymmetric(instance, max_iter=50, method = :bundle)
 
-println("Symmetric: $(LBs)")
-println("Asymmetric: $(LBa)")
+println("Symmetric subgradient: $(LBs1)")
+println("Asymmetric subgradient: $(LBa1)")
+println("Symmetric bundle: $(LBs2)")
+println("Asymmetric bundle: $(LBa2)")
