@@ -11,13 +11,13 @@
     energy_price::Float64
     selling_price::Float64
     D::Float64
-    store_max::Vector{Float64}
-    store_min::Vector{Float64}
-    swap_min::Vector{Float64}
+    store_max::Float64
+    store_min::Float64
+    swap_min::Float64
     energy_arrived::Vector{Float64}
     store_init::Vector{Float64}
-    bat_efficiency::Vector{Float64}
-    con_efficiency::Vector{Float64}
+    bat_efficiency::Float64
+    con_efficiency::Float64
     converter_rate::Float64
     pv_generation::Vector{Float64}
     grid_max::Float64
