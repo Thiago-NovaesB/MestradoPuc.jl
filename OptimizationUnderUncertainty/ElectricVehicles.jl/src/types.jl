@@ -2,8 +2,8 @@
     B::Int64
     C::Int64
     T::Int64
+    N::Int64
     Tarr::Vector{Int64}
-    Tg::Vector{Int64}
 
     grid_price::Vector{Float64}
     swap_price::Float64
@@ -19,7 +19,7 @@
     bat_efficiency::Float64
     con_efficiency::Float64
     converter_rate::Float64
-    pv_generation::Vector{Float64}
+    pv_generation_max::Vector{Float64}
     grid_max::Float64
     charging_rate::Float64
     theta::Float64
