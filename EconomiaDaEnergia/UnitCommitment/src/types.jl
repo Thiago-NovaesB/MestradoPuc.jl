@@ -1,5 +1,5 @@
 @kwdef mutable struct Options
-    solver::Union{DataType,Nothing}=nothing
+    solver::Union{DataType,Nothing} = nothing
     use_kirchhoff::Bool
     use_ramp::Bool
     use_commit::Bool
@@ -11,6 +11,7 @@ end
     g_max::Vector{Float64}
     g_min::Vector{Float64}
     f_max::Vector{Float64}
+    x::Vector{Float64}
     gen2bus::Vector{Int}
     A::Matrix{Int}
     demand::Matrix{Float64}
