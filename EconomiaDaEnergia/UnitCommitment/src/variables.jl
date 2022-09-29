@@ -63,7 +63,7 @@ function add_deficit_k!(prb::Problem)
     size = prb.size
 
     @variable(model, deficit_k[i in 1:size.bus, 1:size.stages, k=1:size.K] >= 0)
-    @variable(model, deficit_k_max[i in 1:size.bus, 1:size.stages])
+    @variable(model, deficit_k_max[i in 1:size.bus, 1:size.stages] >= 0)
 end
 
 function add_generation_cut!(prb::Problem)
@@ -71,7 +71,7 @@ function add_generation_cut!(prb::Problem)
     size = prb.size
 
     @variable(model, generation_cut[i in 1:size.bus, 1:size.stages, k=1:size.K] >= 0)
-    @variable(model, generation_cut_max[1:size.bus, 1:size.stages])
+    @variable(model, generation_cut_max[1:size.bus, 1:size.stages] >= 0)
 end
 
 function add_flow_k!(prb::Problem)

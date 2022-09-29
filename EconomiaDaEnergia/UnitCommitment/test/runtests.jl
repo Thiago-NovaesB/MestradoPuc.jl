@@ -20,14 +20,8 @@ include("test_def.jl")
     end
     @testset "Case03" begin
         prb = teste_3()
-    end
-    @testset "Case04" begin
-        prb = teste_4()
-    end
-    @testset "Case05" begin
-        prb = teste_5()
-    end
-    @testset "Case06" begin
-        prb = teste_6()
+        generation = value.(prb.model[:generation])
+        @test generation[1,1] ≈ 50.0
+        @test generation[2,1] ≈ 50.0
     end
 end
