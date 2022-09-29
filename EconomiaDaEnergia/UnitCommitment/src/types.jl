@@ -25,8 +25,8 @@ end
     turn_off_cost::Vector{Float64}
     contingency_gen::Matrix{Bool}
     contingency_lin::Matrix{Bool}
-    reserve_plus_cost::Vector{Float64}
-    reserve_minus_cost::Vector{Float64}
+    reserve_up_cost::Vector{Float64}
+    reserve_down_cost::Vector{Float64}
     def_cost_rev::Vector{Float64}
     gen_cut_cost::Vector{Float64}
 end

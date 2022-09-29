@@ -90,8 +90,8 @@ function teste_3()
         true true true false true 
         true true true true false]
 
-    data.reserve_plus_cost = [10, 15]
-    data.reserve_minus_cost = [10, 15]
+    data.reserve_up_cost = [10, 15]
+    data.reserve_down_cost = [10, 15]
     data.def_cost_rev = [1000,1000,1000];
     data.gen_cut_cost = [1000,1000,1000];
 

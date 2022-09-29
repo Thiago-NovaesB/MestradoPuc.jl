@@ -33,12 +33,12 @@ function add_variables!(prb::Problem)
     end
     if options.use_contingency
         add_reverse!(prb)
-        add_deficit_k!(prb)
+        add_deficit_pos!(prb)
         add_generation_cut!(prb)
-        add_flow_k!(prb)
-        add_generation_k!(prb)
+        add_flow_pos!(prb)
+        add_generation_pos!(prb)
         if options.use_kirchhoff
-            add_theta_k!(prb)
+            add_theta_pos!(prb)
         end
     end
     nothing
@@ -62,12 +62,12 @@ function add_constraints!(prb::Problem)
         end
     end
     if options.use_contingency
-        add_KCL_k!(prb)
+        add_KCL_pos!(prb)
         if options.use_kirchhoff
-            add_KVL_k!(prb)
+            add_KVL_pos!(prb)
         end
         if options.use_ramp
-            add_RAMP_k!(prb)
+            add_RAMP_pos!(prb)
         end
         add_DEF_CUT_MAX!(prb)
         add_GEN_DEV!(prb)
@@ -81,22 +81,22 @@ function objective_function!(prb::Problem)
     size = prb.size
     options = prb.options
 
-    generation = model[:generation]
-    deficit = model[:deficit]
+    g = model[:g]
+    def = model[:def]
 
-    FO = @expression(model, sum(generation[i, t] * data.gen_cost[i] for i in 1:size.gen, t in 1:size.stages) + sum(deficit[j, t] * data.def_cost[j] for j in 1:size.bus, t in 1:size.stages))
+    FO = @expression(model, sum(g[i, t] * data.gen_cost[i] for i in 1:size.gen, t in 1:size.stages) + sum(def[j, t] * data.def_cost[j] for j in 1:size.bus, t in 1:size.stages))
     if options.use_commit
-        turn_on = model[:turn_on]
-        turn_off = model[:turn_off]
-        add_to_expression!(FO, sum(turn_on[g, t] * data.turn_on_cost[g] + turn_off[g, t] * data.turn_off_cost[g] for g in 1:size.gen, t in 1:size.stages))
+        on = model[:on]
+        off = model[:off]
+        add_to_expression!(FO, sum(on[i, t] * data.on_cost[i] + off[i, t] * data.off_cost[i] for i in 1:size.gen, t in 1:size.stages))
     end
 
     if options.use_contingency
-        reserve_plus = model[:reserve_plus]
-        reserve_minus = model[:reserve_minus]
-        deficit_k_max = model[:deficit_k_max]
-        generation_cut_max = model[:generation_cut_max]
-        add_to_expression!(FO, sum(reserve_plus[i, t] * data.reserve_plus_cost[i] + reserve_minus[i, t] * data.reserve_minus_cost[i] for i in 1:size.gen, t in 1:size.stages) + sum(deficit_k_max[j, t] * data.def_cost_rev[j] + generation_cut_max[j, t] * data.gen_cut_cost[j] for j in 1:size.bus, t in 1:size.stages))
+        reserve_up = model[:reserve_up]
+        reserve_down = model[:reserve_down]
+        def_pos_max = model[:def_pos_max]
+        g_cut_max = model[:g_cut_max]
+        add_to_expression!(FO, sum(reserve_up[i, t] * data.reserve_up_cost[i] + reserve_down[i, t] * data.reserve_down_cost[i] for i in 1:size.gen, t in 1:size.stages) + sum(def_pos_max[j, t] * data.def_cost_rev[j] + g_cut_max[j, t] * data.gen_cut_cost[j] for j in 1:size.bus, t in 1:size.stages))
     end
 
     @objective(model, Min, FO)
