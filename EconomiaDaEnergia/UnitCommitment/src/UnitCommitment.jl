@@ -1,6 +1,5 @@
 module UnitCommitment
 
-using Plots
 using JuMP
 
 include("utils.jl")
