@@ -62,8 +62,6 @@ function add_KCL_pos!(prb::Problem)
     size = prb.size
     g_pos = model[:g_pos]
     f_pos = model[:f_pos]
-    def = model[:def]
-    def = model[:def]
     def_pos = model[:def_pos]
     g_cut = model[:g_cut]
 
@@ -75,8 +73,6 @@ function add_KVL_pos!(prb::Problem)
     data = prb.data
     size = prb.size
     f_pos = model[:f_pos]
-    def = model[:def]
-    def = model[:def]
     theta_pos = model[:theta_pos]
 
     @constraint(model, KVL_pos[i in 1:size.circ, t in 1:size.stages, k=1:size.K], f_pos[i, t, k] == data.contingency_lin[i, k] * sum(theta_pos[j, t, k] * data.A[j, i] for j in 1:size.bus) / data.x[i])
@@ -87,8 +83,6 @@ function add_RAMP_pos!(prb::Problem)
     data = prb.data
     size = prb.size
     g_pos = model[:g_pos]
-    def = model[:def]
-    def = model[:def]
 
     @constraint(model, RAMP_UP_pos[t in 1:size.stages, i in 1:size.gen, k=1:size.K], data.ramp_up[g] >= g_pos[i, mod1(t + 1, size.stages), k] - g_pos[i, t, k])
     @constraint(model, RAMP_DOWN_pos[t in 1:size.stages, i in 1:size.gen, k=1:size.K], -data.ramp_down[g] <= g_pos[i, mod1(t + 1, size.stages), k] - g_pos[i, t, k])
@@ -97,8 +91,6 @@ end
 function add_DEF_CUT_MAX!(prb::Problem)
     model = prb.model
     size = prb.size
-    def = model[:def]
-    def = model[:def]
     def_pos = model[:def_pos]
     def_pos_max = model[:def_pos_max]
     g_cut = model[:g_cut]
@@ -114,10 +106,8 @@ function add_GEN_DEV!(prb::Problem)
     size = prb.size
     g = model[:g]
     g_pos = model[:g_pos]
-    def = model[:def]
     reserve_up = model[:reserve_up]
     reserve_down = model[:reserve_down]
-    def = model[:def]
 
     @constraint(model, GEN_DEV_MIN[i in 1:size.gen, t in 1:size.stages, k=1:size.K], (g[i, t] - reserve_down[i, t]) * data.contingency_gen[i, k] <= g_pos[i, t, k])
     @constraint(model, GEN_DEV_MAX[i in 1:size.gen, t in 1:size.stages, k=1:size.K], (g[i, t] + reserve_up[i, t]) * data.contingency_gen[i, k] >= g_pos[i, t, k])

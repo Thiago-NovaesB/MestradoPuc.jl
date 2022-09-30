@@ -19,7 +19,7 @@ function teste_1()
         -1 0 -1]
     data.f_max = [100, 20, 100]
     data.x = [1.0, 1.0, 1.0]
-    data.demand = [zeros(size.stages) zeros(size.stages) [100 for i in 1:1]]'
+    data.demand = [zeros(size.stages) zeros(size.stages) [100 for _ in 1:1]]'
     data.def_cost = zeros(size.bus) .+ 1000
     data.gen2bus = [1, 2]
     UnitCommitment.build_model(prb)
