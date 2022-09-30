@@ -1,0 +1,157 @@
+function add_battery_balance!(prb::Problem)
+    model = prb.model
+    B = prb.data.B
+    T = prb.data.T
+    D = prb.data.D
+    charger_efficiency = prb.data.charger_efficiency
+    store_init = prb.data.store_init
+
+    energy_storage = model[:energy_storage]
+    energy_charger = model[:energy_charger]
+    energy_sold = model[:energy_sold]
+
+    @constraint(model, battery_balance_0[b = 1:B], energy_storage[b, 1] == store_init[b] + energy_charger[b, 1]*D*charger_efficiency - energy_sold[b, 1]) 
+    @constraint(model, battery_balance[b = 1:B, t = 2:T], energy_storage[b, t] == energy_storage[b, t-1] + energy_charger[b, t]*D*charger_efficiency - energy_sold[b, t]) 
+end
+
+function add_energy_sold_balance!(prb::Problem)
+    model = prb.model
+    B = prb.data.B
+    T = prb.data.T
+    store_init = prb.data.store_init
+    energy_arrived = prb.data.energy_arrived
+    vehicles_arrived = prb.data.vehicles_arrived
+
+    energy_storage = model[:energy_storage]
+    energy_sold = model[:energy_sold]
+    A = model[:A]
+    S = model[:S]
+
+    @constraint(model, energy_sold_balance_0[b = 1:B], energy_sold[b, 1] == (store_init[b] + sum(A[1,v,b]*energy_arrived[1,v] for v in 1:vehicles_arrived[1]))*S[b,1]) 
+    @constraint(model, energy_sold_balance[b = 1:B, t = 2:T], energy_sold[b, t] == (energy_storage[b, t-1] + sum(A[t,v,b]*energy_arrived[t,v] for v in 1:vehicles_arrived[t]))*S[b,t]) #TODO
+end
+
+function add_final_storage!(prb::Problem)
+    model = prb.model
+    B = prb.data.B
+    T = prb.data.T
+    store_max = prb.data.store_max
+    rho = prb.data.rho
+    
+    energy_storage = model[:energy_storage]
+
+    @constraint(model, final_storage[b = 1:B], energy_storage[b, T] >= rho*store_max ) 
+end
+
+function add_assignment_con_1!(prb::Problem)
+    model = prb.model
+    B = prb.data.B
+    T = prb.data.T
+    vehicles_arrived = prb.data.vehicles_arrived
+    A = model[:A]
+    S = model[:S]
+    B = model[:B]
+
+    @constraint(model, con_1[b = 1:B, t = 1:T], sum(A[t,v,b] for v in 1:vehicles_arrived[t]) <= S[b,t]) #TODO
+end
+
+function add_assignment_con_2!(prb::Problem)
+    model = prb.model
+    B = prb.data.B
+    T = prb.data.T
+    vehicles_arrived = prb.data.vehicles_arrived
+    A = model[:A]
+    B = model[:B]
+
+    @constraint(model, con_2[t = 1:T, v = 1:vehicles_arrived[t]], sum(A[t,v,b] for b in 1:B) <= 1) #TODO
+end
+
+function add_choose_action!(prb::Problem)
+    model = prb.model
+    B = prb.data.B
+    T = prb.data.T
+
+    S = model[:S]
+    K = model[:K]
+
+    @constraint(model, choose_action[b = 1:B, t = 1:T], K[b, t] + S[b, t] <= 1) 
+end
+
+function add_min_swap!(prb::Problem)
+    model = prb.model
+    B = prb.data.B
+    T = prb.data.T
+    store_init = prb.data.store_init
+    swap_min = prb.data.swap_min
+
+    S = model[:S]
+    energy_storage = model[:energy_storage]
+
+    @constraint(model, min_swap_0[b = 1:B], store_init[b] >= swap_min*S[b,1]) 
+    @constraint(model, min_swap[b = 1:B, t = 1:T-1], energy_storage[b, t] >= swap_min*S[b,t+1]) 
+end
+
+function add_swap_battery!(prb::Problem)
+    model = prb.model
+    T = prb.data.T
+    N_s = prb.data.N_s
+    vehicles_arrived = prb.data.vehicles_arrived
+
+    S = model[:S]
+
+    @constraint(model, swap_battery[t in 1:T], sum(S[:,t]) <= min(vehicles_arrived[t], N_s)) 
+end
+
+function add_max_charges!(prb::Problem)
+    model = prb.model
+    N_k = prb.data.N_k
+    T = prb.data.T
+
+    K = model[:K]
+
+    @constraint(model, max_charges[t in 1:T], sum(K[:,t]) <= N_k) 
+end
+
+function add_max_charger!(prb::Problem)
+    model = prb.model
+    ramp_max = prb.data.ramp_max
+    T = prb.data.T
+    B = prb.data.B
+
+    K = model[:K]
+    energy_charger = model[:energy_charger]
+
+    @constraint(model, max_charger[b in 1:B, t in 1:T], energy_charger[b,t] <= ramp_max*K[b,t]) 
+end
+
+function add_disponible_converter_energy!(prb::Problem)
+    model = prb.model
+    converter_max = prb.data.converter_max
+    T = prb.data.T
+    
+    energy_charger = model[:energy_charger]
+
+    @constraint(model, disponible_converter_energy[t in 1:T], sum(energy_charger[:,t]) <= converter_max) 
+end
+
+function add_pv_balance!(prb::Problem)
+    model = prb.model
+    T = prb.data.T
+    pv_generation = prb.data.pv_generation
+    
+    pv_generation_bat = model[:pv_generation_bat]
+    pv_generation_grid = model[:pv_generation_grid]
+
+    @constraint(model, pv_balance[t in 1:T], pv_generation[t] == pv_generation_bat[t] + pv_generation_grid[t]) 
+end
+
+function add_energy_balance!(prb::Problem)
+    model = prb.model
+    T = prb.data.T
+    
+    energy_charger = model[:energy_charger]
+    energy_bought_grid = model[:energy_bought_grid]
+    pv_generation_bat = model[:pv_generation_bat]
+
+    @constraint(model, energy_balance[t in 1:T], sum(energy_charger[:,t]) == pv_generation_bat[t] + energy_bought_grid[t]) 
+end
