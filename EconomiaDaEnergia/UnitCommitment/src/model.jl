@@ -18,60 +18,34 @@ end
 
 function add_variables!(prb::Problem)
 
-    options = prb.options
-
     add_generation!(prb)
     add_flow!(prb)
     add_deficit!(prb)
-    if options.use_commit
-        add_comt!(prb)
-        add_turn_on!(prb)
-        add_turn_off!(prb)
-    end
-    if options.use_kirchhoff
-        add_theta!(prb)
-    end
-    if options.use_contingency
-        add_reverse!(prb)
-        add_deficit_pos!(prb)
-        add_generation_cut!(prb)
-        add_flow_pos!(prb)
-        add_generation_pos!(prb)
-        if options.use_kirchhoff
-            add_theta_pos!(prb)
-        end
-    end
+    add_comt!(prb)
+    add_turn_on!(prb)
+    add_turn_off!(prb)
+    add_theta!(prb)
+    add_reserve!(prb)
+    add_deficit_pos!(prb)
+    add_generation_cut!(prb)
+    add_flow_pos!(prb)
+    add_generation_pos!(prb)
+    add_theta_pos!(prb)
     nothing
 end
 
 function add_constraints!(prb::Problem)
 
-    options = prb.options
-
     add_KCL!(prb)
-    if options.use_kirchhoff
-        add_KVL!(prb)
-    end
-    if options.use_ramp
-        add_RAMP!(prb)
-    end
-    if options.use_commit
-        add_COMMIT!(prb)
-        if options.use_up_down_time
-            add_TIMES!(prb)
-        end
-    end
-    if options.use_contingency
-        add_KCL_pos!(prb)
-        if options.use_kirchhoff
-            add_KVL_pos!(prb)
-        end
-        if options.use_ramp
-            add_RAMP_pos!(prb)
-        end
-        add_DEF_CUT_MAX!(prb)
-        add_GEN_DEV!(prb)
-    end
+    add_KVL!(prb)
+    add_RAMP!(prb)
+    add_COMMIT!(prb)
+    add_TIMES!(prb)
+    add_KCL_pos!(prb)
+    add_KVL_pos!(prb)
+    add_RAMP_pos!(prb)
+    add_DEF_CUT_MAX!(prb)
+    add_GEN_DEV!(prb)
     nothing
 end
 

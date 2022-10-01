@@ -14,6 +14,7 @@ function teste_1()
     size.stages = 1
     data.gen_cost = [100, 150]
     data.g_max = [100, 20]
+    data.g_min = [0, 0]
     data.A = [1 1 0
         0 -1 1
         -1 0 -1]
@@ -43,6 +44,7 @@ function teste_2()
     size.stages = 1
     data.gen_cost = [100, 150]
     data.g_max = [100, 20]
+    data.g_min = [0, 0]
     data.A = [1 1 0
         0 -1 1
         -1 0 -1]
@@ -73,6 +75,7 @@ function teste_3()
     data.f_max = [100, 100, 100]
     data.x = [1.0, 1.0, 1.0]
     data.g_max = [100, 100]
+    data.g_min = [0, 0]
     data.gen_cost = [100, 150]
     data.gen2bus = [1, 2]
     data.ramp_down = [50, 50]
