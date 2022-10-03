@@ -23,11 +23,12 @@ function add_linear_Cont_Bin!(prb::Problem)
 
     S = model[:S]
     energy_storage = model[:energy_storage]
-
-    @constraint(model, aux_Y_C_B_1[t = 1:T, b = 1:B],Y_C_B[t, b] <= store_max*S[b,t])
-    @constraint(model, aux_Y_C_B_2[t = 1:T, b = 1:B],Y_C_B[t, b] <= energy_storage[b, t])
-    @constraint(model, aux_Y_C_B_3[t = 1:T, b = 1:B],Y_C_B[t, b] >= energy_storage[b, t] - store_max*(1-S[b,t])) 
-    @constraint(model, aux_Y_C_B_4[t = 1:T, b = 1:B],Y_C_B[t, b] >= store_min*S)
+    Y_C_B = model[:Y_C_B]
+    
+    @constraint(model, aux_Y_C_B_1[t = 1:T, b = 1:B], Y_C_B[t, b] <= store_max*S[b,t])
+    @constraint(model, aux_Y_C_B_2[t = 1:T, b = 1:B], Y_C_B[t, b] <= energy_storage[b, t])
+    @constraint(model, aux_Y_C_B_3[t = 1:T, b = 1:B], Y_C_B[t, b] >= energy_storage[b, t] - store_max*(1-S[b,t])) 
+    @constraint(model, aux_Y_C_B_4[t = 1:T, b = 1:B], Y_C_B[t, b] >= store_min*S[b,t])
     
 end
 
@@ -42,9 +43,9 @@ function add_linear_Bin_Bin!(prb::Problem)
     A = model[:A]
     Y_B_B = model[:Y_B_B]
 
-    @constraint(model,aux_Y_B_B_1[t in 1:T,v = 1:vehicles_arrived[t], b = 1:B],Y_B_B[t,v,b] <= A[t,v,b])
-    @constraint(model,aux_Y_B_B_2[t in 1:T,v = 1:vehicles_arrived[t], b = 1:B],Y_B_B[t,v,b] <= S[b,t])
-    @constraint(model,aux_Y_B_B_3[t in 1:T,v = 1:vehicles_arrived[t], b = 1:B],Y_B_B[t,v,b] >= A[t,v,b] + S[b,t] -1)
+    @constraint(model, aux_Y_B_B_1[t in 1:T,v = 1:vehicles_arrived[t], b = 1:B], Y_B_B[t,v,b] <= A[t,v,b])
+    @constraint(model, aux_Y_B_B_2[t in 1:T,v = 1:vehicles_arrived[t], b = 1:B], Y_B_B[t,v,b] <= S[b,t])
+    @constraint(model, aux_Y_B_B_3[t in 1:T,v = 1:vehicles_arrived[t], b = 1:B], Y_B_B[t,v,b] >= A[t,v,b] + S[b,t] - 1)
     
 end
 
