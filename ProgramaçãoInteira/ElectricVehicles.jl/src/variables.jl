@@ -11,11 +11,10 @@ end
 function add_energy_sold_vehicle!(prb::Problem)
     model = prb.model
     store_max = prb.data.store_max
-    store_min = prb.data.store_min
     B = prb.data.B
     T = prb.data.T
 
-    @variable(model, store_min <= energy_sold[1:B, 1:T] <= store_max)
+    @variable(model, 0.0 <= energy_sold[1:B, 1:T] <= store_max)
 end
 
 function add_energy_bought_grid!(prb::Problem)
@@ -84,7 +83,7 @@ function add_trick_C_B!(prb::Problem)
     T = prb.data.T
     B = prb.data.B
 
-    @variable(model, Y_C_B[1:T, 1:B])
+    @variable(model, Y_C_B[1:T-1, 1:B])
 end
 
 function add_trick_B_B!(prb::Problem)
