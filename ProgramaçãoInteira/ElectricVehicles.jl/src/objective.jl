@@ -7,17 +7,17 @@ function add_max_profit!(prb::Problem)
     pv_price = prb.data.pv_price
     con_efficiency = prb.data.con_efficiency
     D = prb.data.D
-    grid_price = prb.data.grid_price
+    grid_buy_price = prb.data.grid_buy_price
+    pv_generation = prb.data.pv_generation #TODO !!!!!!
 
     energy_sold = model[:energy_sold]
     S = model[:S]
-    pv_generation = model[:pv_generation]
     pv_generation_grid = model[:pv_generation_grid]
     energy_bought_grid = model[:energy_bought_grid]
 
     @objective(model, Max, sum(battery_energy_price*energy_sold + swap_price*S)
                             + sum( pv_generation_grid*grid_sell_price*con_efficiency*D)
-                            - sum( energy_bought_grid*grid_price*D)
+                            - sum( energy_bought_grid*grid_buy_price*D)
                             - sum( pv_price*pv_generation*D)
                             ) 
     

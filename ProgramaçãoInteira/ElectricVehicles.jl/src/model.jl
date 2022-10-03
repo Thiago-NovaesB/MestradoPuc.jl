@@ -17,6 +17,8 @@ function add_variables!(prb::Problem)
     add_pv_generation_bat!(prb)
     add_pv_generation_grid!(prb)
     add_assignment!(prb)
+    add_trick_C_B!(prb)
+    add_trick_B_B!(prb)
     nothing
 end
 

@@ -14,6 +14,40 @@ function add_battery_balance!(prb::Problem)
     @constraint(model, battery_balance[b = 1:B, t = 2:T], energy_storage[b, t] == energy_storage[b, t-1] + energy_charger[b, t]*D*charger_efficiency - energy_sold[b, t]) 
 end
 
+function add_linear_Cont_Bin!(prb::Problem)
+    model = prb.model
+    B = prb.data.B
+    T = prb.data.T
+    store_max = prb.data.store_max
+    store_min = prb.data.store_min
+
+    S = model[:S]
+    energy_storage = model[:energy_storage]
+
+    @constraint(model, aux_Y_C_B_1[t = 1:T, b = 1:B],Y_C_B[t, b] <= store_max*S[b,t])
+    @constraint(model, aux_Y_C_B_2[t = 1:T, b = 1:B],Y_C_B[t, b] <= energy_storage[b, t])
+    @constraint(model, aux_Y_C_B_3[t = 1:T, b = 1:B],Y_C_B[t, b] >= energy_storage[b, t] - store_max*(1-S[b,t])) 
+    @constraint(model, aux_Y_C_B_4[t = 1:T, b = 1:B],Y_C_B[t, b] >= store_min*S)
+    
+end
+
+function add_linear_Bin_Bin!(prb::Problem)
+    model = prb.model
+    B = prb.data.B
+    T = prb.data.T
+
+    vehicles_arrived = prb.data.vehicles_arrived
+
+    S = model[:S]
+    A = model[:A]
+    Y_B_B = model[:Y_B_B]
+
+    @constraint(model,aux_Y_B_B_1[t in 1:T,v = 1:vehicles_arrived[t], b = 1:B],Y_B_B[t,v,b] <= A[t,v,b])
+    @constraint(model,aux_Y_B_B_2[t in 1:T,v = 1:vehicles_arrived[t], b = 1:B],Y_B_B[t,v,b] <= S[b,t])
+    @constraint(model,aux_Y_B_B_3[t in 1:T,v = 1:vehicles_arrived[t], b = 1:B],Y_B_B[t,v,b] >= A[t,v,b] + S[b,t] -1)
+    
+end
+
 function add_energy_sold_balance!(prb::Problem)
     model = prb.model
     B = prb.data.B
@@ -22,13 +56,17 @@ function add_energy_sold_balance!(prb::Problem)
     energy_arrived = prb.data.energy_arrived
     vehicles_arrived = prb.data.vehicles_arrived
 
-    energy_storage = model[:energy_storage]
     energy_sold = model[:energy_sold]
-    A = model[:A]
     S = model[:S]
+    Y_B_B = model[:Y_B_B]
+    Y_C_B = model[:Y_C_B]
 
-    @constraint(model, energy_sold_balance_0[b = 1:B], energy_sold[b, 1] == (store_init[b] + sum(A[1,v,b]*energy_arrived[1,v] for v in 1:vehicles_arrived[1]))*S[b,1]) 
-    @constraint(model, energy_sold_balance[b = 1:B, t = 2:T], energy_sold[b, t] == (energy_storage[b, t-1] + sum(A[t,v,b]*energy_arrived[t,v] for v in 1:vehicles_arrived[t]))*S[b,t]) #TODO
+    # @constraint(model, energy_sold_balance_0[b = 1:B], energy_sold[b, 1] == (store_init[b] + sum(A[1,v,b]*energy_arrived[1,v] for v in 1:vehicles_arrived[1]))*S[b,1])
+    # @constraint(model, energy_sold_balance[b = 1:B, t = 2:T], energy_sold[b, t] == (energy_storage[b, t-1] + sum(A[t,v,b]*energy_arrived[t,v] for v in 1:vehicles_arrived[t]))*S[b,t]) #TODO
+    # @show sum(Y_B_B[1,v,1]*energy_arrived[1,v] for v in 1:vehicles_arrived[1])
+
+    @constraint(model, energy_sold_balance_0[b = 1:B], energy_sold[b, 1] == (store_init[b]*S[b,1] + sum(Y_B_B[1,v,b]*energy_arrived[1][v] for v in 1:vehicles_arrived[1])))
+    @constraint(model, energy_sold_balance[b = 1:B, t = 2:T], energy_sold[b, t] == (Y_C_B[b, t-1] + sum(Y_B_B[t,v,b]*energy_arrived[t][v] for v in 1:vehicles_arrived[t]))) #TODO
 end
 
 function add_final_storage!(prb::Problem)
@@ -50,7 +88,6 @@ function add_assignment_con_1!(prb::Problem)
     vehicles_arrived = prb.data.vehicles_arrived
     A = model[:A]
     S = model[:S]
-    B = model[:B]
 
     @constraint(model, con_1[b = 1:B, t = 1:T], sum(A[t,v,b] for v in 1:vehicles_arrived[t]) <= S[b,t]) #TODO
 end
@@ -61,7 +98,6 @@ function add_assignment_con_2!(prb::Problem)
     T = prb.data.T
     vehicles_arrived = prb.data.vehicles_arrived
     A = model[:A]
-    B = model[:B]
 
     @constraint(model, con_2[t = 1:T, v = 1:vehicles_arrived[t]], sum(A[t,v,b] for b in 1:B) <= 1) #TODO
 end
