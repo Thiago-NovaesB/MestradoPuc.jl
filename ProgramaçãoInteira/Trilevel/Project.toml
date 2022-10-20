@@ -1,0 +1,8 @@
+name = "Trilevel"
+uuid = "3b0f70fd-989a-40be-b068-f8360bf83833"
+authors = ["Thiago Novaes <thiagonovaesb@poli.ufrj.br>"]
+version = "0.1.0"
+
+[deps]
+HiGHS = "87dc4568-4c63-4d18-b0c0-bb2238e4078b"
+JuMP = "4076af6c-e467-56ae-b986-b466b2749572"
