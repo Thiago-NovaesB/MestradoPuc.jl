@@ -72,7 +72,7 @@ function oracle(data)
     optimize!(model)
     @show objective_value(model)
 
-    return model
+    return objective_value(model), value.(uG).*value.(pi_1), value.(uL).*data.Fmax.*value.(pi_3)#, value.(uG), value.(uL)
 
 end
 
@@ -129,5 +129,56 @@ function oracle_linear(data)
     optimize!(model)
     @show objective_value(model)
 
-    return model
+    return objective_value(model), value.(uG).*value.(pi_1), value.(uL).*data.Fmax.*value.(pi_3)#, value.(uG), value.(uL)
+end
+
+function create_master(data)
+    master = Model(Gurobi.Optimizer)
+    set_silent(master)
+    @variable(master, 0 <= expG[i = 1:data.nter] <= data.expGmax[i])
+    @variable(master, expL[1:data.nlin], Bin)
+    @constraint(master,[i = 1:data.nlin], expL[i] + data.exist[i] <= 1)
+    @variable(master, δ >= 0)
+
+    @objective(master, Min, δ)
+    
+    return master
+end
+
+function add_cut!(master, data, fk, grad_1, grad_2)
+
+    δ = master[:δ]
+    expG = master[:expG]
+    expL = master[:expL]
+    @constraint(master, δ >= fk + dot(grad_1,expG - data.expG) + dot(grad_2,expL - data.expL))
+    
+end
+
+function solve_master!(master, data)
+
+    optimize!(master)
+    data.expG = value.(master[:expG])
+    data.expL = value.(master[:expL])
+    data.obj = value(master[:δ])
+    return nothing
+end
+
+function trilevel_model(data, oracle::Function = Trilevel.oracle, maxiters::Int = 10, tol::Float64 = 1e-3)
+
+    master = create_master(data)
+    UB = Inf
+    LB = -Inf
+    for _ in 1:maxiters
+
+        Trilevel.solve_master!(master, data)
+        fk, grad_1, grad_2 = oracle(data)
+        Trilevel.add_cut!(master, data, fk, grad_1, grad_2)
+        UB = fk
+        @show UB, LB
+
+        if UB - LB < tol
+            break
+        end
+    end
+    return nothing
 end

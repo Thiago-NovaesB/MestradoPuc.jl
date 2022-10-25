@@ -6,6 +6,7 @@ function create_data()
     data = Trilevel.Data()
 
     data.Gmax = [100, 20, 100]
+    data.expGmax = [10, 10, 0]
     data.C = [100, 150, 1000]
     data.def_cost = 1000.0
     data.Fmax = [100,20,100,100,20,100]
@@ -18,9 +19,10 @@ function create_data()
     data.A = [-1 -1 0 -1 -1 0;
             0 1 -1 0 1 -1;
             1 0 1 1 0 1]
-    data.expG = [10, 10, 0]
+    data.expG = [0, 0, 0]
     data.contg = [1, 1, 1]
-    data.expL = [1, 1, 1, 1, 1, 1]
+    data.exist = [1, 1, 1, 0, 0, 0]
+    data.expL = [0, 0, 0, 0, 0, 0]
     data.contl = [1, 1, 1, 1, 1, 1]
 
     data.k = 1
@@ -30,7 +32,5 @@ function create_data()
 end
 
 data = create_data()
-Trilevel.primal(data);
-Trilevel.dual(data);
-Trilevel.oracle(data);
-Trilevel.oracle_linear(data);
+master = Trilevel.create_master(data)
+Trilevel.trilevel_model(data)

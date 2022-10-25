@@ -1,5 +1,7 @@
 @kwdef mutable struct Data
+    obj::Float64
     Gmax::Vector{Float64}
+    expGmax::Vector{Float64}
     C::Vector{Float64}
     Fmax::Vector{Float64}
     demand::Vector{Float64}
@@ -12,6 +14,7 @@
     expG::Vector{Float64}
     contg::Vector{Int}
     expL::Vector{Int}
+    exist::Vector{Int}
     contl::Vector{Int}
     k::Int
     bigM::Float64
