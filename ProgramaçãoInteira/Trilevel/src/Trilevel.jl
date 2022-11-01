@@ -1,7 +1,6 @@
 module Trilevel
 
 using JuMP
-using HiGHS
 using Gurobi
 using LinearAlgebra
 

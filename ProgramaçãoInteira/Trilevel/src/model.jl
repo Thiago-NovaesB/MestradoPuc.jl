@@ -1,10 +1,10 @@
 function primal(data)
-    model = Model(HiGHS.Optimizer)
+    model = Model(Gurobi.Optimizer)
     set_silent(model)
     @variable(model, 0 <= g[i=1:data.nter])
     @variable(model, f[1:data.nlin])
 
-    @constraint(model, BALANCE[b = 1:data.nbus], sum(g[t] for t in 1:data.nter if data.ter2bus[t] == b) + sum(f[c] * data.A[b, c] for c in 1:data.nlin) == data.demand[b] + data.def[b])
+    @constraint(model, BALANCE[b = 1:data.nbus], sum(g[t] for t in 1:data.nter if data.ter2bus[t] == b) + sum(f[c] * data.A[b, c] for c in 1:data.nlin) == data.demand[b])
     @constraint(model, GLIMIT[t = 1:data.nter], g[t] <= (data.Gmax[t] + data.expG[t])*data.contg[t])
 
     @constraint(model, FLIMIT1[i = 1:data.nlin], f[i] <= data.Fmax[i]*data.expL[i]*data.contl[i])
@@ -13,14 +13,15 @@ function primal(data)
     @objective(model, Min, sum(data.C.*g))
     optimize!(model)
     @show objective_value(model)
+    @show JuMP.dual.(BALANCE)
     return model
 end
 
 function dual(data)
-    model = Model(HiGHS.Optimizer)
+    model = Model(Gurobi.Optimizer)
     set_silent(model)
 
-    @variable(model, lambda1[1:data.nter])
+    @variable(model, lambda1[1:data.nbus])
     @variable(model, lambda2[1:data.nter] <= 0)
     @variable(model, lambda3[1:data.nlin] <= 0)
     @variable(model, lambda4[1:data.nlin] >= 0)
@@ -28,13 +29,14 @@ function dual(data)
     @constraint(model, g[i = 1:data.nter], lambda1[i] + lambda2[i] <= data.C[i])
     @constraint(model, f[i = 1:data.nlin], lambda3[i] + lambda4[i] + sum(lambda1[b]*data.A[b, i] for b in 1:data.nbus) == 0)
 
-    @objective(model, Max, sum(lambda1[i]*(data.demand[i]+data.def[i]) for i in 1:data.nbus) +
+    @objective(model, Max, sum(lambda1[i]*(data.demand[i]) for i in 1:data.nbus) +
                            sum(lambda2[i]*(data.Gmax[i] + data.expG[i])*data.contg[i] for i in 1:data.nbus) +
                            sum(lambda3[i]*data.Fmax[i]*data.contl[i]*data.expL[i] for i = 1:data.nlin) -
                            sum(lambda4[i]*data.Fmax[i]*data.contl[i]*data.expL[i] for i = 1:data.nlin)
                            )
     optimize!(model)
     @show objective_value(model)
+    @show value.(lambda1)
     return model
 end
 
@@ -65,14 +67,12 @@ function oracle(data)
     # Função objetivo
     obj_1 = @expression(model, sum(pi_1 .* (data.Gmax + data.expG) .* uG))
     obj_2 = @expression(model, sum(data.demand .* pi_2))
-    obj_3 = @expression(model, sum(pi_3 .* data.Fmax .* data.expL .* uL))
-    obj_4 = @expression(model, -sum(pi_4 .* data.Fmax .* data.expL .* uL))
+    obj_3 = @expression(model, sum(pi_3 .* data.Fmax .* (data.expL+data.exist) .* uL))
+    obj_4 = @expression(model, -sum(pi_4 .* data.Fmax .* (data.expL+data.exist) .* uL))
     @objective(model, Max, obj_1 + obj_2 + obj_3 + obj_4)
 
     optimize!(model)
-    @show objective_value(model)
-
-    return objective_value(model), value.(uG).*value.(pi_1), value.(uL).*data.Fmax.*value.(pi_3)#, value.(uG), value.(uL)
+    return objective_value(model), value.(uG).*value.(pi_1), value.(uL).*data.Fmax.*(value.(pi_3)-value.(pi_4))#, value.(uG), value.(uL)
 
 end
 
@@ -127,9 +127,8 @@ function oracle_linear(data)
     @objective(model, Max, obj_1 + obj_2 + obj_3 + obj_4)
 
     optimize!(model)
-    @show objective_value(model)
 
-    return objective_value(model), value.(uG).*value.(pi_1), value.(uL).*data.Fmax.*value.(pi_3)#, value.(uG), value.(uL)
+    return objective_value(model), value.(wG), (value.(wL)-value.(zL)).*data.Fmax#, value.(uG), value.(uL)
 end
 
 function create_master(data)
@@ -138,9 +137,9 @@ function create_master(data)
     @variable(master, 0 <= expG[i = 1:data.nter] <= data.expGmax[i])
     @variable(master, expL[1:data.nlin], Bin)
     @constraint(master,[i = 1:data.nlin], expL[i] + data.exist[i] <= 1)
-    @variable(master, δ >= 0)
+    @variable(master, δ >= -1e8)
 
-    @objective(master, Min, δ)
+    @objective(master, Min, sum(expG.*data.exp_cost_g) + sum(expL.*data.exp_cost_l) + δ)
     
     return master
 end
@@ -159,26 +158,32 @@ function solve_master!(master, data)
     optimize!(master)
     data.expG = value.(master[:expG])
     data.expL = value.(master[:expL])
-    data.obj = value(master[:δ])
+    data.obj = objective_value(master)
     return nothing
 end
 
-function trilevel_model(data, oracle::Function = Trilevel.oracle, maxiters::Int = 10, tol::Float64 = 1e-3)
+function trilevel_model(data, oracle::Function = Trilevel.oracle, maxiters::Int = 100, tol::Float64 = 1e-3)
 
     master = create_master(data)
     UB = Inf
     LB = -Inf
-    for _ in 1:maxiters
+    for i in 1:maxiters
 
         Trilevel.solve_master!(master, data)
         fk, grad_1, grad_2 = oracle(data)
         Trilevel.add_cut!(master, data, fk, grad_1, grad_2)
-        UB = fk
-        @show UB, LB
+        UB = fk + sum(data.expG.*data.exp_cost_g) + sum(data.expL.*data.exp_cost_l)
+        LB = data.obj
+        println("iter $i")
+        println("UB $UB")
+        println("LB $LB")
+        println("data.expG $(data.expG)")
+        println("data.expL $(data.expL)")
+
 
         if UB - LB < tol
             break
         end
     end
-    return nothing
+    return master, data
 end
