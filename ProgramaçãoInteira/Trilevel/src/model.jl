@@ -4,16 +4,21 @@ function primal(data)
     @variable(model, 0 <= g[i=1:data.nter])
     @variable(model, f[1:data.nlin])
 
-    @constraint(model, BALANCE[b = 1:data.nbus], sum(g[t] for t in 1:data.nter if data.ter2bus[t] == b) + sum(f[c] * data.A[b, c] for c in 1:data.nlin) == data.demand[b])
-    @constraint(model, GLIMIT[t = 1:data.nter], g[t] <= (data.Gmax[t] + data.expG[t])*data.contg[t])
+    @constraint(model, lambda1[b = 1:data.nbus], sum(g[t] for t in 1:data.nter if data.ter2bus[t] == b) + sum(f[c] * data.A[b, c] for c in 1:data.nlin) == data.demand[b])
+    @constraint(model, lambda2[t = 1:data.nter], g[t] <= (data.Gmax[t] + data.expG[t])*data.contg[t])
 
-    @constraint(model, FLIMIT1[i = 1:data.nlin], f[i] <= data.Fmax[i]*data.expL[i]*data.contl[i])
-    @constraint(model, FLIMIT2[i = 1:data.nlin], f[i] >= -data.Fmax[i]*data.expL[i]*data.contl[i])
+    @constraint(model, lambda3[i = 1:data.nlin], f[i] <= data.Fmax[i]*(data.expL[i]+data.exist[i])*data.contl[i])
+    @constraint(model, lambda4[i = 1:data.nlin], f[i] >= -data.Fmax[i]*(data.expL[i]+data.exist[i])*data.contl[i])
 
     @objective(model, Min, sum(data.C.*g))
     optimize!(model)
     @show objective_value(model)
-    @show JuMP.dual.(BALANCE)
+    @show JuMP.dual.(lambda1)
+    @show JuMP.dual.(lambda2)
+    @show JuMP.dual.(lambda3)
+    @show JuMP.dual.(lambda4)
+    @show JuMP.value.(g)
+    @show JuMP.value.(f)
     return model
 end
 
@@ -26,17 +31,24 @@ function dual(data)
     @variable(model, lambda3[1:data.nlin] <= 0)
     @variable(model, lambda4[1:data.nlin] >= 0)
 
-    @constraint(model, g[i = 1:data.nter], lambda1[i] + lambda2[i] <= data.C[i])
-    @constraint(model, f[i = 1:data.nlin], lambda3[i] + lambda4[i] + sum(lambda1[b]*data.A[b, i] for b in 1:data.nbus) == 0)
+    @constraint(model, g[i = 1:data.nter], data.C[i] >= lambda1[i] + lambda2[data.ter2bus[i]])
+    @constraint(model, f[i = 1:data.nlin], 0 == lambda3[i] + lambda4[i] + sum(lambda1[b]*data.A[b, i] for b in 1:data.nbus))
 
     @objective(model, Max, sum(lambda1[i]*(data.demand[i]) for i in 1:data.nbus) +
                            sum(lambda2[i]*(data.Gmax[i] + data.expG[i])*data.contg[i] for i in 1:data.nbus) +
-                           sum(lambda3[i]*data.Fmax[i]*data.contl[i]*data.expL[i] for i = 1:data.nlin) -
-                           sum(lambda4[i]*data.Fmax[i]*data.contl[i]*data.expL[i] for i = 1:data.nlin)
+                           sum(lambda3[i]*data.Fmax[i]*data.contl[i]*(data.expL[i]+data.exist[i]) for i = 1:data.nlin) -
+                           sum(lambda4[i]*data.Fmax[i]*data.contl[i]*(data.expL[i]+data.exist[i]) for i = 1:data.nlin)
                            )
     optimize!(model)
     @show objective_value(model)
     @show value.(lambda1)
+    @show value.(lambda2)
+    @show value.(lambda3)
+    @show value.(lambda4)
+    @show JuMP.dual.(g)
+    @show JuMP.dual.(f)
+
+    @show JuMP.dual.(lambda4)
     return model
 end
 
@@ -72,6 +84,8 @@ function oracle(data)
     @objective(model, Max, obj_1 + obj_2 + obj_3 + obj_4)
 
     optimize!(model)
+    @show value.(uG)
+    @show value.(uL)
     return objective_value(model), value.(uG).*value.(pi_1), value.(uL).*data.Fmax.*(value.(pi_3)-value.(pi_4))#, value.(uG), value.(uL)
 
 end
@@ -122,8 +136,8 @@ function oracle_linear(data)
     # Função objetivo
     obj_1 = @expression(model, sum(wG .* (data.Gmax + data.expG)))
     obj_2 = @expression(model, sum(data.demand .* pi_2))
-    obj_3 = @expression(model, sum(wL .* data.Fmax .* data.expL))
-    obj_4 = @expression(model, -sum(zL .* data.Fmax .* data.expL))
+    obj_3 = @expression(model, sum(wL .* data.Fmax .* (data.expL+data.exist)))
+    obj_4 = @expression(model, -sum(zL .* data.Fmax .* (data.expL+data.exist)))
     @objective(model, Max, obj_1 + obj_2 + obj_3 + obj_4)
 
     optimize!(model)
@@ -137,7 +151,7 @@ function create_master(data)
     @variable(master, 0 <= expG[i = 1:data.nter] <= data.expGmax[i])
     @variable(master, expL[1:data.nlin], Bin)
     @constraint(master,[i = 1:data.nlin], expL[i] + data.exist[i] <= 1)
-    @variable(master, δ >= -1e8)
+    @variable(master, δ >= 0)
 
     @objective(master, Min, sum(expG.*data.exp_cost_g) + sum(expL.*data.exp_cost_l) + δ)
     

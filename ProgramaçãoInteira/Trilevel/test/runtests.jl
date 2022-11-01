@@ -8,7 +8,7 @@ function create_data()
     data.Gmax = [100, 0, 0]
     data.expGmax = [10, 10, 100]
     data.C = [100, 150, 1000]
-    data.def_cost = 10000000.0
+    data.def_cost = 1000.0
     data.Fmax = [100,20,100,100,20,100]
     data.demand = [0, 0, 100]
     data.nter = 3
