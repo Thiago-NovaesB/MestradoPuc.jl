@@ -1,0 +1,4 @@
+name = "NonLinear"
+uuid = "3b0f70fd-989a-40be-b068-f8360bf83833"
+authors = ["Thiago Novaes <thiagonovaesb@poli.ufrj.br>"]
+version = "0.1.0"
